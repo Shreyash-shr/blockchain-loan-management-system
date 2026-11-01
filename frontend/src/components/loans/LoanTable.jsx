@@ -91,7 +91,7 @@ export default function LoanTable({ loans = [], onOpen, role = 'applicant' }) {
                     className="!px-3 !py-2 text-xs"
                     onClick={() => onOpen(l)}
                   >
-                    {role === 'lender' && l.status === 'requested' ? 'Review' : 'Details'}
+                    {role === 'lender' && (l.status === 'compliance_verified' || l.status === 'requested') ? 'Review' : 'Details'}
                     <ArrowRight size={13} />
                   </Button>
                 </td>

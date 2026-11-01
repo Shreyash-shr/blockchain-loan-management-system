@@ -43,7 +43,8 @@ export default function AdminVerificationPage() {
       try {
         setLoading(true);
         const res = await api.get('/admin/verification');
-        const apps = (res.data.applications || []).map(app => ({
+        const appList = res.applications || res.data?.applications || (Array.isArray(res) ? res : []);
+        const apps = appList.map(app => ({
           id: app.id,
           application_number: app.application_number,
           name: app.applicant_name || app.full_name,
@@ -64,8 +65,9 @@ export default function AdminVerificationPage() {
         }));
         setApps(apps);
         // Update policy from API response if available
-        if (res.data.policy) {
-          setPolicy(prev => ({ ...prev, ...res.data.policy }));
+        const policyData = res.policy || res.data?.policy;
+        if (policyData) {
+          setPolicy(prev => ({ ...prev, ...policyData }));
         }
       } catch (err) {
         console.error('Failed to fetch applications:', err);
@@ -83,7 +85,7 @@ export default function AdminVerificationPage() {
     );
     try {
       const res = await api.get(`/admin/verification/${app.id}`);
-      const detail = res.data;
+      const detail = res.data || res;
       const mappedDocs = (detail.documents || []).map(d => ({
         key: d.document_type,
         label: d.document_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
