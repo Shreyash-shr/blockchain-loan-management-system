@@ -11,6 +11,11 @@ export default function LoanTimeline({ currentStatus = 'requested' }) {
     // 2: Lender decision
     // 3: Smart contract
     // 4: Repayment & completion
+    if (normalizedStatus === 'compliance_rejected') {
+      if (stepIndex === 0) return 'done';
+      if (stepIndex === 1) return 'rejected';
+      return 'wait';
+    }
     if (normalizedStatus === 'rejected') {
       if (stepIndex <= 1) return 'done';
       if (stepIndex === 2) return 'rejected';
@@ -21,7 +26,12 @@ export default function LoanTimeline({ currentStatus = 'requested' }) {
       if (stepIndex === 1) return 'active';
       return 'wait';
     }
-    if (normalizedStatus === 'under_review') {
+    if (normalizedStatus === 'needs_correction') {
+      if (stepIndex === 0) return 'done';
+      if (stepIndex === 1) return 'active';
+      return 'wait';
+    }
+    if (normalizedStatus === 'compliance_verified' || normalizedStatus === 'under_review') {
       if (stepIndex <= 1) return 'done';
       if (stepIndex === 2) return 'active';
       return 'wait';
@@ -31,7 +41,7 @@ export default function LoanTimeline({ currentStatus = 'requested' }) {
       if (stepIndex === 3) return 'active';
       return 'wait';
     }
-    if (normalizedStatus === 'ongoing') {
+    if (normalizedStatus === 'disbursed' || normalizedStatus === 'ongoing') {
       if (stepIndex <= 3) return 'done';
       return 'active';
     }

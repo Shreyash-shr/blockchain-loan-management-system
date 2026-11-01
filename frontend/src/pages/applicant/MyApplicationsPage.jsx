@@ -6,6 +6,7 @@ import { Input, Select } from '../../components/common/FormElements';
 import LoanTable, { money } from '../../components/loans/LoanTable';
 import Modal from '../../components/common/Modal';
 import BlockchainBadge from '../../components/loans/BlockchainBadge';
+import LoanTimeline from '../../components/loans/LoanTimeline';
 import { api } from '../../services/api';
 
 export default function MyApplicationsPage() {
@@ -151,6 +152,9 @@ export default function MyApplicationsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Loan Lifecycle Status Timeline */}
+              <LoanTimeline currentStatus={app.status} />
 
               <div className="rounded-xl border border-slate-200 p-4 space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Verification & Decision</h4>
