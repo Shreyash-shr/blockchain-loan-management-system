@@ -36,6 +36,21 @@ export default function RequestsQueuePage() {
     loadLoans();
   }, []);
 
+  const handleOpenLoan = async (loan) => {
+    try {
+      const res = await api.get(`/loans/${loan.id}`);
+      const detail = res.data?.loan || res.loan || res.data || {};
+      const docs = res.data?.documents || res.documents || [];
+      setSelectedLoan({
+        ...loan,
+        ...detail,
+        documents: docs,
+      });
+    } catch {
+      setSelectedLoan(loan);
+    }
+  };
+
   const handleDecision = async (loanId, newStatus, reason) => {
     try {
       await api.patch(`/loans/${loanId}/decision`, {
@@ -48,6 +63,12 @@ export default function RequestsQueuePage() {
     setLoans((prev) =>
       prev.map((l) => (l.id === loanId ? { ...l, status: newStatus, lender_decision_reason: reason } : l))
     );
+  };
+
+  const handleReturn = async (loanId, reason) => {
+    await api.patch(`/loans/${loanId}/return`, { reason });
+    // Application is returned to admin, so remove it from lender's immediate pending queue
+    setLoans((prev) => prev.filter((l) => l.id !== loanId));
   };
 
   const filteredLoans = loans.filter((l) => {
@@ -104,7 +125,7 @@ export default function RequestsQueuePage() {
             No loan requests in queue. Applications will appear here after admin verification.
           </div>
         ) : (
-          <LoanTable loans={filteredLoans} onOpen={setSelectedLoan} role="lender" />
+          <LoanTable loans={filteredLoans} onOpen={handleOpenLoan} role="lender" />
         )}
       </div>
 
@@ -114,6 +135,7 @@ export default function RequestsQueuePage() {
         isOpen={!!selectedLoan}
         onClose={() => setSelectedLoan(null)}
         onDecide={handleDecision}
+        onReturn={handleReturn}
       />
     </div>
   );

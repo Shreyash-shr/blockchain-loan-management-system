@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
   -- Lender Underwriting
   assigned_lender_id UUID REFERENCES users(id),
   lender_decision_reason TEXT,
+  lender_return_message TEXT,
   verified_credit_score SMALLINT CHECK (verified_credit_score BETWEEN 300 AND 900),
   verified_monthly_income NUMERIC(14,2),
 

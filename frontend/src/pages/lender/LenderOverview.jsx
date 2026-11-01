@@ -41,6 +41,21 @@ export default function LenderOverview() {
     fetchRequests();
   }, []);
 
+  const handleOpenLoan = async (loan) => {
+    try {
+      const res = await api.get(`/loans/${loan.id}`);
+      const detail = res.data?.loan || res.loan || res.data || {};
+      const docs = res.data?.documents || res.documents || [];
+      setSelectedLoan({
+        ...loan,
+        ...detail,
+        documents: docs,
+      });
+    } catch {
+      setSelectedLoan(loan);
+    }
+  };
+
   const handleDecision = async (loanId, newStatus, reason) => {
     try {
       await api.patch(`/loans/${loanId}/decision`, {
@@ -53,6 +68,11 @@ export default function LenderOverview() {
     setLoans((prev) =>
       prev.map((l) => (l.id === loanId ? { ...l, status: newStatus, lender_decision_reason: reason } : l))
     );
+  };
+
+  const handleReturn = async (loanId, reason) => {
+    await api.patch(`/loans/${loanId}/return`, { reason });
+    setLoans((prev) => prev.filter((l) => l.id !== loanId));
   };
 
   const pendingLoans = loans.filter((l) => ['requested', 'under_review', 'compliance_verified'].includes(l.status));
@@ -120,7 +140,7 @@ export default function LenderOverview() {
           </Button>
         </div>
 
-        <LoanTable loans={pendingLoans.slice(0, 5)} onOpen={setSelectedLoan} role="lender" />
+        <LoanTable loans={pendingLoans.slice(0, 5)} onOpen={handleOpenLoan} role="lender" />
       </div>
 
       {/* Review Modal */}
@@ -129,6 +149,7 @@ export default function LenderOverview() {
         isOpen={!!selectedLoan}
         onClose={() => setSelectedLoan(null)}
         onDecide={handleDecision}
+        onReturn={handleReturn}
       />
     </div>
   );

@@ -229,12 +229,15 @@ router.patch('/:id/decision', authenticate, authorize('lender'), validate(loanDe
       }
     }
 
-    // Step 2, 3 & 4: Record lender decision on-chain & persist receipt in PostgreSQL
-    const blockchainTx = await recordLoanDecisionOnChain(client, req.params.id, status, {
-      lenderId: req.user.id,
-      verified_credit_score,
-      verified_monthly_income,
-    });
+    // Step 2, 3 & 4: Record lender decision on-chain & persist receipt in PostgreSQL (only for approved loans)
+    let blockchainTx = null;
+    if (newStatus === 'approved') {
+      blockchainTx = await recordLoanDecisionOnChain(client, req.params.id, status, {
+        lenderId: req.user.id,
+        verified_credit_score,
+        verified_monthly_income,
+      });
+    }
 
     // Create audit log
     await client.query(
@@ -248,8 +251,8 @@ router.patch('/:id/decision', authenticate, authorize('lender'), validate(loanDe
           previous_status: loan.status,
           new_status: newStatus,
           reason,
-          transaction_hash: blockchainTx?.transaction_hash,
-          contract_address: blockchainTx?.contract_address,
+          transaction_hash: blockchainTx?.transaction_hash || null,
+          contract_address: blockchainTx?.contract_address || null,
         }),
       ]
     );
@@ -257,7 +260,7 @@ router.patch('/:id/decision', authenticate, authorize('lender'), validate(loanDe
     await client.query('COMMIT');
 
     res.json({
-      message: `Loan ${status === 'approved' ? 'approved' : 'rejected'} successfully and recorded on blockchain.`,
+      message: `Loan ${status === 'approved' ? 'approved' : 'rejected'} successfully${blockchainTx ? ' and recorded on blockchain.' : '.'}`,
       new_status: newStatus,
       blockchain_tx: blockchainTx,
     });
@@ -265,6 +268,73 @@ router.patch('/:id/decision', authenticate, authorize('lender'), validate(loanDe
     await client.query('ROLLBACK');
     console.error('Loan decision error:', err.message);
     res.status(500).json({ error: 'Failed to process loan decision.' });
+  } finally {
+    client.release();
+  }
+});
+
+// ──── Lender: Return application to admin for re-verification ────
+// PATCH /api/loans/:id/return
+router.patch('/:id/return', authenticate, authorize('lender'), async (req, res) => {
+  const client = await getClient();
+  try {
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'A specific return reason is required.' });
+    }
+
+    await client.query('BEGIN');
+
+    const checkRes = await client.query(
+      'SELECT id, status, admin_status FROM loan_applications WHERE id = $1 FOR UPDATE',
+      [req.params.id]
+    );
+
+    if (checkRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Application not found.' });
+    }
+
+    const loan = checkRes.rows[0];
+
+    // Update status to needs_correction so admin sees it for re-inspection
+    await client.query(
+      `UPDATE loan_applications
+       SET admin_status = 'needs_correction', status = 'under_review',
+           lender_return_message = $1, assigned_lender_id = $2,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [reason.trim(), req.user.id, req.params.id]
+    );
+
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
+       VALUES ($1, 'LOAN_RETURNED_TO_ADMIN', 'loan_application', $2, $3)`,
+      [
+        req.user.id,
+        req.params.id,
+        JSON.stringify({
+          previous_status: loan.status,
+          previous_admin_status: loan.admin_status,
+          return_reason: reason.trim(),
+        }),
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Loan application returned to admin for re-verification.',
+      application_id: req.params.id,
+      admin_status: 'needs_correction',
+      status: 'under_review',
+      lender_return_message: reason.trim(),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Loan return error:', err.message);
+    res.status(500).json({ error: 'Failed to return loan application.' });
   } finally {
     client.release();
   }

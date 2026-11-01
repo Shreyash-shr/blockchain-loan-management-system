@@ -67,8 +67,26 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
 // GET /api/admin/verification
 router.get('/verification', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { admin_status = 'pending', page = 1, limit = 20 } = req.query;
+    const { admin_status, page = 1, limit = 20 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let whereClause = "WHERE la.admin_status IN ('pending', 'needs_correction')";
+    const params = [];
+    let pIdx = 1;
+
+    if (admin_status && admin_status !== 'ALL' && admin_status !== 'all') {
+      whereClause = `WHERE la.admin_status = $${pIdx}`;
+      params.push(admin_status);
+      pIdx++;
+    }
+
+    const countResult = await query(
+      `SELECT COUNT(*) FROM loan_applications la ${whereClause}`,
+      params
+    );
+
+    params.push(parseInt(limit));
+    params.push(offset);
 
     const result = await query(
       `SELECT la.*, u.full_name AS applicant_name, u.email AS applicant_email,
@@ -79,15 +97,10 @@ router.get('/verification', authenticate, authorize('admin'), async (req, res) =
        FROM loan_applications la
        JOIN users u ON u.id = la.applicant_id
        LEFT JOIN applicant_profiles ap ON ap.user_id = la.applicant_id
-       WHERE la.admin_status = $1
+       ${whereClause}
        ORDER BY la.submitted_at ASC
-       LIMIT $2 OFFSET $3`,
-      [admin_status, parseInt(limit), offset]
-    );
-
-    const countResult = await query(
-      'SELECT COUNT(*) FROM loan_applications WHERE admin_status = $1',
-      [admin_status]
+       LIMIT $${pIdx} OFFSET $${pIdx + 1}`,
+      params
     );
 
     res.json({
@@ -225,7 +238,8 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
     await client.query(
       `UPDATE loan_applications 
        SET admin_status = $1, admin_remarks = $2, admin_verifier_id = $3, admin_verified_at = NOW(),
-           status = $4
+           status = $4,
+           lender_return_message = CASE WHEN $1 = 'verified' THEN NULL ELSE lender_return_message END
        WHERE id = $5`,
       [admin_status, admin_remarks || null, req.user.id, newLoanStatus, req.params.id]
     );

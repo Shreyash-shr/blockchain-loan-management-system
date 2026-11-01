@@ -57,6 +57,7 @@ export default function AdminVerificationPage() {
           tenure_months: app.tenure_months,
           status: app.status,
           admin_status: app.admin_status,
+          lender_return_message: app.lender_return_message,
           date: app.submitted_at ? new Date(app.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
           docs: [],
           rawData: app,
@@ -90,7 +91,13 @@ export default function AdminVerificationPage() {
         status: d.verification_status || 'pending',
         id: d.id,
       }));
-      setSelectedApp({ ...app, docs: mappedDocs, verification_checks: detail.verification_checks || [], policy_rules: detail.policy_rules });
+      setSelectedApp({
+        ...app,
+        lender_return_message: detail.application?.lender_return_message || app.lender_return_message,
+        docs: mappedDocs,
+        verification_checks: detail.verification_checks || [],
+        policy_rules: detail.policy_rules,
+      });
     } catch (err) {
       console.error('Failed to fetch application details:', err);
       setSelectedApp(app); // open with basic data
@@ -270,7 +277,14 @@ export default function AdminVerificationPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <Pill>{app.status}</Pill>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Pill>{app.status}</Pill>
+                        {app.admin_status === 'needs_correction' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                            Returned by Lender
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-4 text-right">
                       <Button
@@ -301,6 +315,22 @@ export default function AdminVerificationPage() {
           maxWidth="max-w-4xl"
         >
           <div className="space-y-6">
+            {/* Lender Return Notice (if applicable) */}
+            {selectedApp.lender_return_message && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 space-y-1.5 animate-in fade-in">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-900">
+                  <AlertTriangle size={15} className="text-amber-600" />
+                  <span>Action Required: Returned by Underwriting Lender</span>
+                </div>
+                <p className="text-xs text-amber-950 leading-relaxed">
+                  <strong>Lender Remarks:</strong> {selectedApp.lender_return_message}
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  Please review the applicant's submitted documents, update validity statuses, and re-certify to send back to the lender queue.
+                </p>
+              </div>
+            )}
+
             {/* Condition Check Results Banner */}
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
               <div className="flex items-center justify-between">
