@@ -90,7 +90,13 @@ export default function MyApplicationsPage() {
 
       {/* Table Card */}
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-soft sm:p-6">
-        <LoanTable loans={filteredLoans} onOpen={handleOpenLoan} role="applicant" />
+        {loading ? (
+          <div className="py-14 text-center">
+            <p className="text-sm text-slate-500 animate-pulse">Loading loan applications...</p>
+          </div>
+        ) : (
+          <LoanTable loans={filteredLoans} onOpen={handleOpenLoan} role="applicant" />
+        )}
       </div>
 
       {/* Modal */}

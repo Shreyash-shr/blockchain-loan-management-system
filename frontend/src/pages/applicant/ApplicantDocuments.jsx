@@ -85,7 +85,7 @@ export default function ApplicantDocuments() {
   const handleDownload = async (docId, filename) => {
     try {
       const token = api.getToken();
-      const res = await fetch(`http://localhost:5000/api/documents/${docId}/download`, {
+      const res = await fetch(`${api.baseUrl}/documents/${docId}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Download failed');
@@ -130,39 +130,45 @@ export default function ApplicantDocuments() {
 
       {/* Grid of Document Upload Cards */}
       <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 shadow-soft">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {REQUIRED_CATEGORIES.map((cat) => {
-            const uploadedDoc = findServerDoc(cat.docType);
-            const pendingFile = pendingUploads[cat.key];
-            const fileObj = pendingFile || (uploadedDoc ? { name: uploadedDoc.original_filename } : null);
-            const status = uploadedDoc ? uploadedDoc.verification_status : undefined;
+        {loading ? (
+          <div className="py-14 text-center">
+            <p className="text-sm text-slate-500 animate-pulse">Loading verified documents...</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {REQUIRED_CATEGORIES.map((cat) => {
+              const uploadedDoc = findServerDoc(cat.docType);
+              const pendingFile = pendingUploads[cat.key];
+              const fileObj = pendingFile || (uploadedDoc ? { name: uploadedDoc.original_filename } : null);
+              const status = uploadedDoc ? uploadedDoc.verification_status : undefined;
 
-            return (
-              <div key={cat.key} className="space-y-1">
-                <DocumentUploader
-                  docKey={cat.key}
-                  label={cat.label}
-                  required={cat.required}
-                  status={status}
-                  file={fileObj}
-                  onFileSelect={handleFileSelect}
-                />
-                {uploadedDoc && (
-                  <div className="flex items-center justify-between px-2 text-xs text-slate-400">
-                    <span>Uploaded: {new Date(uploadedDoc.uploaded_at).toLocaleDateString('en-IN')}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(uploadedDoc.id, uploadedDoc.original_filename)}
-                      className="text-brand font-medium hover:underline flex items-center gap-1"
-                    >
-                      <Download size={12} /> Download
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <div key={cat.key} className="space-y-1">
+                  <DocumentUploader
+                    docKey={cat.key}
+                    label={cat.label}
+                    required={cat.required}
+                    status={status}
+                    file={fileObj}
+                    onFileSelect={handleFileSelect}
+                  />
+                  {uploadedDoc && (
+                    <div className="flex items-center justify-between px-2 text-xs text-slate-400">
+                      <span>Uploaded: {new Date(uploadedDoc.uploaded_at).toLocaleDateString('en-IN')}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(uploadedDoc.id, uploadedDoc.original_filename)}
+                        className="text-brand font-medium hover:underline flex items-center gap-1"
+                      >
+                        <Download size={12} /> Download
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-5">
           <p className="text-xs text-slate-500">

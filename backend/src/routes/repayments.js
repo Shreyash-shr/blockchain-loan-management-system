@@ -117,7 +117,7 @@ router.post('/checkout', authenticate, authorize('applicant'), async (req, res) 
     await client.query('COMMIT');
 
     // In-app notification for repayment
-    createNotification(req.user.id, {
+    await createNotification(req.user.id, {
       title: 'Repayment Confirmed 💳',
       message: `Your EMI payment of ₹${parseFloat(repayment.amount_due).toLocaleString('en-IN')} has been verified and registered on blockchain (Ref: ${paymentRef}).`,
       type: 'success',
@@ -125,7 +125,7 @@ router.post('/checkout', authenticate, authorize('applicant'), async (req, res) 
     }).catch(() => {});
 
     if (completionTx) {
-      createNotification(req.user.id, {
+      await createNotification(req.user.id, {
         title: 'Loan Fully Repaid! 🏆',
         message: 'Congratulations! All scheduled instalments have been cleared in full. Your loan completion is permanently recorded on blockchain.',
         type: 'success',

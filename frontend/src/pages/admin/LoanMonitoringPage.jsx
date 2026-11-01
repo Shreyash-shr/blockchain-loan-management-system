@@ -98,8 +98,8 @@ export default function LoanMonitoringPage() {
         <Modal
           isOpen={!!selectedLoan}
           onClose={() => setSelectedLoan(null)}
-          title={`Administrative Audit: ${selectedLoan.id}`}
-          subtitle={`Applicant: ${selectedLoan.name} · Date: ${selectedLoan.date || 'Recent'}`}
+          title={`Administrative Audit: ${selectedLoan.application_number ? `LN-2026-${String(selectedLoan.application_number).padStart(4, '0')}` : selectedLoan.id}`}
+          subtitle={`Applicant: ${selectedLoan.name || selectedLoan.applicant_name || 'Verified Borrower'} · Date: ${selectedLoan.date || 'Recent'}`}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -113,7 +113,17 @@ export default function LoanMonitoringPage() {
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-xs text-slate-500">Credit Score</span>
-                <p className="text-sm font-bold text-emerald-700 mt-0.5">{selectedLoan.score || '—'}</p>
+                <p className={`text-sm font-bold mt-0.5 ${
+                  (selectedLoan.score || 0) >= 750
+                    ? 'text-emerald-700'
+                    : (selectedLoan.score || 0) >= 700
+                    ? 'text-amber-600'
+                    : selectedLoan.score
+                    ? 'text-rose-600'
+                    : 'text-slate-500'
+                }`}>
+                  {selectedLoan.score || '—'}
+                </p>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-xs text-slate-500">Status</span>

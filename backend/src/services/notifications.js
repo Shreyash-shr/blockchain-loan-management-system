@@ -86,3 +86,4 @@ export async function markAllNotificationsAsRead(userId) {
   );
   return result.rows.length;
 }
+

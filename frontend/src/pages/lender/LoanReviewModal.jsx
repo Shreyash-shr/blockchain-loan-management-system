@@ -125,7 +125,7 @@ export default function LoanReviewModal({ loan, isOpen, onClose, onDecide, onRet
           </div>
           <div className="p-3 bg-slate-50 rounded-xl">
             <span className="text-xs text-slate-500">Credit Score (CIBIL)</span>
-            <p className={`text-base font-bold mt-0.5 ${
+            <p className={`text-base font-bold mt-0.5 flex items-center gap-1.5 ${
               isCibilGood
                 ? 'text-emerald-700'
                 : isCibilModerate
@@ -134,7 +134,18 @@ export default function LoanReviewModal({ loan, isOpen, onClose, onDecide, onRet
                 ? 'text-rose-600'
                 : 'text-slate-500'
             }`}>
-              {scoreVal || '—'}
+              <span>{scoreVal || '—'}</span>
+              {scoreVal > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+                  isCibilGood
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : isCibilModerate
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {isCibilGood ? 'Prime (≥750)' : isCibilModerate ? 'Moderate' : 'High Risk (<700)'}
+                </span>
+              )}
             </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-xl">

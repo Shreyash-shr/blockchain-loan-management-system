@@ -34,3 +34,7 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Test Artifacts & Outputs
+test-results/
+
+

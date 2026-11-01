@@ -47,3 +47,4 @@ router.patch('/read-all', authenticate, async (req, res) => {
 });
 
 export default router;
+

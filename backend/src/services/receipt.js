@@ -228,3 +228,4 @@ export function generateRepaymentReceiptPDF(data) {
 
   return doc;
 }
+
