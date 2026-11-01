@@ -10,27 +10,39 @@ import { api } from '../../services/api';
 export default function LenderOverview() {
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
+  const [stats, setStats] = useState(null);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchRequests() {
+    async function fetchOverview() {
       try {
         setLoading(true);
-        const res = await api.get('/loans/requests');
-        const raw = res?.loans || res?.data?.loans || [];
-        const mapped = raw.map((loan) => ({
-          ...loan,
-          name: loan.applicant_name || loan.name,
-          amount: parseFloat(loan.requested_amount || loan.amount || 0),
-          score: loan.declared_credit_score || loan.profile_credit_score || loan.score,
-          income: parseFloat(loan.profile_monthly_income || loan.income || 0),
-          date: loan.submitted_at
-            ? new Date(loan.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-            : loan.date,
-          docs: loan.doc_count || loan.docs || 0,
-        }));
-        setLoans(mapped);
+        const [requestsRes, statsRes] = await Promise.allSettled([
+          api.get('/loans/requests'),
+          api.get('/loans/stats'),
+        ]);
+
+        if (requestsRes.status === 'fulfilled') {
+          const res = requestsRes.value;
+          const raw = res?.loans || res?.data?.loans || [];
+          const mapped = raw.map((loan) => ({
+            ...loan,
+            name: loan.applicant_name || loan.name,
+            amount: parseFloat(loan.requested_amount || loan.amount || 0),
+            score: loan.declared_credit_score || loan.profile_credit_score || loan.score,
+            income: parseFloat(loan.profile_monthly_income || loan.income || 0),
+            date: loan.submitted_at
+              ? new Date(loan.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+              : loan.date,
+            docs: loan.doc_count || loan.docs || 0,
+          }));
+          setLoans(mapped);
+        }
+
+        if (statsRes.status === 'fulfilled') {
+          setStats(statsRes.value?.stats || null);
+        }
       } catch (err) {
         console.error('Failed to load lender overview:', err);
         setLoans([]);
@@ -38,7 +50,7 @@ export default function LenderOverview() {
         setLoading(false);
       }
     }
-    fetchRequests();
+    fetchOverview();
   }, []);
 
   const handleOpenLoan = async (loan) => {
@@ -98,28 +110,28 @@ export default function LenderOverview() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Pending Underwriting"
-          value={String(pendingLoans.length)}
+          value={String(stats ? stats.pending_underwriting : pendingLoans.length)}
           change="Awaiting decision"
           icon={Clock3}
           tone="amber"
         />
         <Stat
           label="Approved Loans"
-          value={String(approvedCount)}
+          value={String(stats ? stats.approved_loans : approvedCount)}
           change="+8.2% this month"
           icon={BadgeCheck}
           tone="green"
         />
         <Stat
           label="Rejected Applications"
-          value={String(rejectedCount)}
+          value={String(stats ? stats.rejected_loans : rejectedCount)}
           change="Risk criteria"
           icon={XCircle}
           tone="rose"
         />
         <Stat
           label="Completed & Repaid"
-          value={String(completedCount)}
+          value={String(stats ? stats.completed_loans : completedCount)}
           change="Settled loans"
           icon={Wallet}
           tone="violet"

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { query, getClient } from '../config/database.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { recordRepaymentOnChain, recordLoanCompletionOnChain } from '../services/blockchain.js';
+import { generateRepaymentReceiptPDF } from '../services/receipt.js';
+import { createNotification } from '../services/notifications.js';
 
 const router = Router();
 
@@ -114,6 +116,23 @@ router.post('/checkout', authenticate, authorize('applicant'), async (req, res) 
 
     await client.query('COMMIT');
 
+    // In-app notification for repayment
+    createNotification(req.user.id, {
+      title: 'Repayment Confirmed 💳',
+      message: `Your EMI payment of ₹${parseFloat(repayment.amount_due).toLocaleString('en-IN')} has been verified and registered on blockchain (Ref: ${paymentRef}).`,
+      type: 'success',
+      link: '/applicant/repayments',
+    }).catch(() => {});
+
+    if (completionTx) {
+      createNotification(req.user.id, {
+        title: 'Loan Fully Repaid! 🏆',
+        message: 'Congratulations! All scheduled instalments have been cleared in full. Your loan completion is permanently recorded on blockchain.',
+        type: 'success',
+        link: '/applicant/repayments',
+      }).catch(() => {});
+    }
+
     res.json({
       message: 'Payment processed successfully and recorded on blockchain.',
       payment_reference: paymentRef,
@@ -154,6 +173,63 @@ router.get('/:id', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Repayment detail error:', err.message);
     res.status(500).json({ error: 'Failed to retrieve repayment details.' });
+  }
+});
+
+// GET /api/repayments/:id/receipt - Download cryptographic PDF receipt
+router.get('/:id/receipt', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT r.*, la.applicant_id, la.application_number, la.purpose, la.requested_amount,
+              u.full_name AS applicant_name, u.email AS applicant_email,
+              bt.transaction_hash, bt.contract_address, bt.network
+       FROM repayments r
+       JOIN loan_applications la ON la.id = r.application_id
+       JOIN users u ON u.id = la.applicant_id
+       LEFT JOIN LATERAL (
+         SELECT transaction_hash, contract_address, network
+         FROM blockchain_transactions
+         WHERE application_id = la.id AND transaction_type = 'repayment'
+         ORDER BY created_at DESC LIMIT 1
+       ) bt ON true
+       WHERE r.id = $1`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Repayment not found.' });
+    }
+
+    const repayment = result.rows[0];
+
+    if (req.user.role === 'applicant' && repayment.applicant_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    if (repayment.status !== 'paid') {
+      return res.status(400).json({ error: 'Receipt is only available for paid repayments.' });
+    }
+
+    // Determine instalment number
+    const instNumRes = await query(
+      `SELECT COUNT(*) AS num FROM repayments 
+       WHERE application_id = $1 AND due_date <= $2`,
+      [repayment.application_id, repayment.due_date]
+    );
+    repayment.instalment_number = parseInt(instNumRes.rows[0]?.num || 1, 10);
+
+    const filename = `CredChain-Receipt-${repayment.payment_reference || repayment.id.substring(0, 8)}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const doc = generateRepaymentReceiptPDF(repayment);
+    doc.pipe(res);
+    doc.end();
+  } catch (err) {
+    console.error('PDF receipt generation error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF receipt.' });
+    }
   }
 });
 

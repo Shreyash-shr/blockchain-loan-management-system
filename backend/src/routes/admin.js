@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query, getClient } from '../config/database.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate, adminVerificationSchema, documentVerificationSchema, policyRulesSchema } from '../validators/schemas.js';
+import { createNotification, notifyRole } from '../services/notifications.js';
 
 const router = Router();
 
@@ -266,6 +267,30 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
     );
 
     await client.query('COMMIT');
+
+    // Notify applicant & lenders
+    if (admin_status === 'verified') {
+      createNotification(app.applicant_id, {
+        title: 'Compliance Verified',
+        message: 'Your loan application documents and eligibility criteria have been verified and forwarded to lenders for underwriting.',
+        type: 'success',
+        link: '/applicant/applications',
+      }).catch(() => {});
+
+      notifyRole('lender', {
+        title: 'Verified Loan for Review',
+        message: `A loan application for ₹${parseFloat(app.requested_amount).toLocaleString('en-IN')} has been verified and is ready for underwriting.`,
+        type: 'action',
+        link: '/lender/requests',
+      }).catch(() => {});
+    } else if (admin_status === 'rejected') {
+      createNotification(app.applicant_id, {
+        title: 'Verification Rejected',
+        message: `Your loan application could not be certified. Reason: ${admin_remarks || 'Document or eligibility criteria not met.'}`,
+        type: 'warning',
+        link: '/applicant/applications',
+      }).catch(() => {});
+    }
 
     res.json({
       message: `Application ${admin_status === 'verified' ? 'verified' : 'rejected'} successfully.`,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,17 +17,76 @@ import {
   ArrowRight,
   ShieldCheck,
   Sliders,
+  CheckCheck,
 } from 'lucide-react';
 import { Logo } from '../components/common/CommonUI';
 import { useAuth, normalizeRole } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { api } from '../services/api';
 
 export default function DashboardLayout() {
   const { user, role, rawRole, logout } = useAuth();
-  const { info } = useToast();
+  const { info, success } = useToast();
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    async function loadNotifs() {
+      try {
+        const res = await api.get('/notifications');
+        if (res && Array.isArray(res.notifications)) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unread_count || 0);
+        }
+      } catch (err) {
+        // Silent catch for guest / offline mode
+      }
+    }
+    loadNotifs();
+    const interval = setInterval(loadNotifs, 25000); // Poll every 25s for updates
+    return () => clearInterval(interval);
+  }, []);
+
+  // Close notifications dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifs(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleMarkAsRead = async (n) => {
+    if (!n.is_read) {
+      try {
+        await api.patch(`/notifications/${n.id}/read`);
+        setNotifications((prev) =>
+          prev.map((item) => (item.id === n.id ? { ...item, is_read: true } : item))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {}
+    }
+    if (n.link) {
+      setShowNotifs(false);
+      navigate(n.link);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+      setUnreadCount(0);
+      success('All notifications marked as read.');
+    } catch {}
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -192,14 +251,85 @@ export default function DashboardLayout() {
               <span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               CredChain Secure
             </span>
-            <button
-              onClick={() => info('All system notifications are up to date.')}
-              className="relative rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition"
-              title="Notifications"
-            >
-              <Bell size={18} />
-              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500" />
-            </button>
+            {/* Interactive Notifications Popover */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setShowNotifs((prev) => !prev)}
+                className={`relative rounded-xl border p-2.5 transition ${
+                  showNotifs
+                    ? 'border-brand bg-blue-50 text-brand'
+                    : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifs && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-100 bg-white shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/70">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-ink">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-brand">
+                          {unreadCount} new
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                      >
+                        <CheckCheck size={14} /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-slate-400">
+                        <Bell size={24} className="mx-auto mb-2 opacity-40" />
+                        No notifications yet. You're all caught up!
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => handleMarkAsRead(n)}
+                          className={`p-3.5 hover:bg-slate-50 cursor-pointer transition flex items-start gap-3 ${
+                            !n.is_read ? 'bg-blue-50/40' : ''
+                          }`}
+                        >
+                          <span
+                            className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                              !n.is_read ? 'bg-brand ring-4 ring-blue-100' : 'bg-slate-300'
+                            }`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{n.title}</p>
+                            <p className="mt-0.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                              {n.message}
+                            </p>
+                            <span className="mt-1 block text-[10px] text-slate-400">
+                              {new Date(n.created_at).toLocaleTimeString('en-IN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="grid h-10 w-10 place-items-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
               {initials}
             </div>

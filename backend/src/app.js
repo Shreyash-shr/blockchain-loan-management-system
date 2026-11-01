@@ -23,6 +23,7 @@ import documentRoutes from './routes/documents.js';
 import loanRoutes from './routes/loans.js';
 import repaymentRoutes from './routes/repayments.js';
 import adminRoutes from './routes/admin.js';
+import notificationsRoutes from './routes/notifications.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -87,6 +88,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/repayments', repaymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // ──── Global Error Handler ────
 app.use((err, req, res, next) => {

@@ -246,7 +246,20 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
 
--- 11. AUTOMATIC UPDATED_AT TIMESTAMP TRIGGER
+-- 11. IN-APP NOTIFICATIONS
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(150) NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  link VARCHAR(255),
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+
+-- 12. AUTOMATIC UPDATED_AT TIMESTAMP TRIGGER
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

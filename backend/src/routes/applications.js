@@ -3,6 +3,7 @@ import { query, getClient } from '../config/database.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate, loanApplicationSchema } from '../validators/schemas.js';
 import { recordLoanCreationOnChain } from '../services/blockchain.js';
+import { createNotification, notifyRole } from '../services/notifications.js';
 
 const router = Router();
 
@@ -96,6 +97,21 @@ router.post('/', authenticate, authorize('applicant'), validate(loanApplicationS
     );
 
     await client.query('COMMIT');
+
+    // Trigger in-app notifications
+    createNotification(req.user.id, {
+      title: 'Loan Application Submitted',
+      message: `Your application for ₹${parseFloat(requested_amount).toLocaleString('en-IN')} has been submitted for compliance verification.`,
+      type: 'info',
+      link: '/applicant/applications',
+    }).catch(() => {});
+
+    notifyRole('admin', {
+      title: 'New Loan Application',
+      message: `Application for ₹${parseFloat(requested_amount).toLocaleString('en-IN')} is awaiting compliance verification.`,
+      type: 'action',
+      link: '/admin/verification',
+    }).catch(() => {});
 
     res.status(201).json({
       message: 'Loan application submitted successfully and registered on blockchain.',

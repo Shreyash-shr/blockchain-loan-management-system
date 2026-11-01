@@ -104,6 +104,36 @@ export default function ApplicantRepayments() {
     }
   };
 
+  const handleDownloadReceipt = async (r) => {
+    try {
+      info(`Generating official PDF receipt for ${r.ref || 'Instalment'}...`);
+      const token = localStorage.getItem('credchain_token');
+      const response = await fetch(`http://localhost:5000/api/repayments/${r.id}/receipt`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download receipt');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CredChain-Receipt-${r.ref || r.id.substring(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      success('PDF receipt downloaded successfully!');
+    } catch (err) {
+      console.error('Download receipt error:', err);
+      error('Could not download receipt. Please try again.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -231,8 +261,8 @@ export default function ApplicantRepayments() {
                     ) : (
                       <Button
                         variant="quiet"
-                        className="!px-3 !py-1.5 text-xs text-slate-500"
-                        onClick={() => info(`Receipt for ${r.ref} downloaded.`)}
+                        className="!px-3 !py-1.5 text-xs text-slate-500 hover:text-brand"
+                        onClick={() => handleDownloadReceipt(r)}
                       >
                         <Download size={13} /> Receipt
                       </Button>

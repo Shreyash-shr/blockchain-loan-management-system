@@ -3,8 +3,30 @@ import { query, getClient } from '../config/database.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { validate, loanDecisionSchema } from '../validators/schemas.js';
 import { recordLoanDecisionOnChain } from '../services/blockchain.js';
+import { createNotification, notifyRole } from '../services/notifications.js';
 
 const router = Router();
+
+// GET /api/loans/stats - Live lender underwriting dashboard metrics
+router.get('/stats', authenticate, authorize('lender'), async (req, res) => {
+  try {
+    const statsResult = await query(`
+      SELECT 
+        COUNT(CASE WHEN admin_status = 'verified' AND status IN ('compliance_verified', 'requested', 'under_review') THEN 1 END) AS pending_underwriting,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) AS approved_loans,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) AS rejected_loans,
+        COUNT(CASE WHEN status IN ('completed', 'repaid') THEN 1 END) AS completed_loans,
+        COALESCE(SUM(CASE WHEN status IN ('approved', 'repaid', 'completed') THEN requested_amount ELSE 0 END), 0) AS total_disbursed,
+        COALESCE(SUM(CASE WHEN status = 'approved' THEN requested_amount ELSE 0 END), 0) AS active_capital
+      FROM loan_applications
+    `);
+
+    res.json({ stats: statsResult.rows[0] });
+  } catch (err) {
+    console.error('Lender stats error:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve lender statistics.' });
+  }
+});
 
 // GET /api/loans/requests - Loan request queue for lender
 router.get('/requests', authenticate, authorize('lender'), async (req, res) => {
@@ -259,6 +281,23 @@ router.patch('/:id/decision', authenticate, authorize('lender'), validate(loanDe
 
     await client.query('COMMIT');
 
+    // In-app notification for applicant
+    if (newStatus === 'approved') {
+      createNotification(loan.applicant_id, {
+        title: 'Loan Approved & Disbursed! 🎉',
+        message: `Your loan of ₹${parseFloat(loan.requested_amount).toLocaleString('en-IN')} has been approved by the lender. Your EMI schedule is now active.`,
+        type: 'success',
+        link: '/applicant/repayments',
+      }).catch(() => {});
+    } else {
+      createNotification(loan.applicant_id, {
+        title: 'Loan Application Declined',
+        message: `Your loan application was declined by the underwriter. Reason: ${reason || 'Criteria not met.'}`,
+        type: 'warning',
+        link: '/applicant/applications',
+      }).catch(() => {});
+    }
+
     res.json({
       message: `Loan ${status === 'approved' ? 'approved' : 'rejected'} successfully${blockchainTx ? ' and recorded on blockchain.' : '.'}`,
       new_status: newStatus,
@@ -323,6 +362,14 @@ router.patch('/:id/return', authenticate, authorize('lender'), async (req, res) 
     );
 
     await client.query('COMMIT');
+
+    // Notify admins of returned application
+    notifyRole('admin', {
+      title: 'Application Returned by Lender',
+      message: `A loan application was returned by underwriter for correction: "${reason.trim()}"`,
+      type: 'action',
+      link: '/admin/verification',
+    }).catch(() => {});
 
     res.json({
       message: 'Loan application returned to admin for re-verification.',
