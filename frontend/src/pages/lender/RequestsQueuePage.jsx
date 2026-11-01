@@ -53,7 +53,11 @@ export default function RequestsQueuePage() {
   const filteredLoans = loans.filter((l) => {
     const term = `${l.id} ${l.name} ${l.purpose}`.toLowerCase();
     const matchesSearch = term.includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || l.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'pending'
+        ? ['requested', 'under_review', 'compliance_verified'].includes(l.status.toLowerCase())
+        : l.status.toLowerCase() === statusFilter.toLowerCase());
     return matchesSearch && matchesStatus;
   });
 
@@ -80,8 +84,8 @@ export default function RequestsQueuePage() {
         <div className="w-full sm:w-56">
           <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="ALL">All Applications</option>
-            <option value="requested">Requested (New)</option>
-            <option value="under_review">Under Review</option>
+            <option value="pending">Pending Underwriting</option>
+            <option value="compliance_verified">Compliance Verified</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </Select>

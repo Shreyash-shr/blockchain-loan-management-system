@@ -289,7 +289,7 @@ export default function LoanReviewModal({ loan, isOpen, onClose, onDecide }) {
             Close
           </Button>
 
-          {loan.status === 'requested' || loan.status === 'under_review' ? (
+          {['requested', 'under_review', 'compliance_verified'].includes(loan.status) ? (
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
               {!showRejectInput && (
                 <Button
