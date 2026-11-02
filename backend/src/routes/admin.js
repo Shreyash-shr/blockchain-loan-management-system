@@ -325,8 +325,8 @@ router.get('/policy-rules', authenticate, authorize('admin'), async (req, res) =
   }
 });
 
-// PUT /api/admin/policy-rules
-router.put('/policy-rules', authenticate, authorize('admin'), validate(policyRulesSchema), async (req, res) => {
+// PUT & PATCH /api/admin/policy-rules
+const updatePolicyRulesHandler = async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -352,8 +352,8 @@ router.put('/policy-rules', authenticate, authorize('admin'), validate(policyRul
     // Audit
     await client.query(
       `INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
-       VALUES ($1, 'POLICY_RULES_UPDATED', 'loan_policy_rules', $2, $3)`,
-      [req.user.id, result.rows[0].id, JSON.stringify(req.body)]
+       VALUES ($1, 'POLICY_RULES_UPDATED', 'loan_policy_rules', NULL, $2)`,
+      [req.user.id, JSON.stringify({ ...req.body, rule_id: result.rows[0].id })]
     );
 
     await client.query('COMMIT');
@@ -366,7 +366,10 @@ router.put('/policy-rules', authenticate, authorize('admin'), validate(policyRul
   } finally {
     client.release();
   }
-});
+};
+
+router.put('/policy-rules', authenticate, authorize('admin'), validate(policyRulesSchema), updatePolicyRulesHandler);
+router.patch('/policy-rules', authenticate, authorize('admin'), validate(policyRulesSchema), updatePolicyRulesHandler);
 
 // ──── All Loans (Admin Monitoring) ────
 // GET /api/admin/loans

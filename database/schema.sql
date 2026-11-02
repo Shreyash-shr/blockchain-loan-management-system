@@ -89,10 +89,10 @@ END $$;
 -- 2. USERS TABLE
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  full_name VARCHAR(160) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  phone VARCHAR(30),
-  password_hash TEXT NOT NULL,
+  full_name VARCHAR(160) NOT NULL CHECK (length(trim(full_name)) >= 2),
+  email VARCHAR(255) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+  phone VARCHAR(20) CHECK (phone IS NULL OR phone ~ '^[0-9]{10}$'),
+  password_hash TEXT NOT NULL CHECK (length(password_hash) >= 50),
   role user_role NOT NULL DEFAULT 'applicant',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

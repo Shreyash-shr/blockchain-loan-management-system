@@ -33,6 +33,12 @@ export default function RegisterPage() {
       return;
     }
 
+    const cleanedPhone = phone.replace(/\D/g, '');
+    if (cleanedPhone.length !== 10) {
+      error('Phone number must be exactly 10 digits');
+      return;
+    }
+
     if (!termsAccepted) {
       error('Please accept the Terms of Service and Privacy Policy');
       return;
@@ -44,7 +50,7 @@ export default function RegisterPage() {
       const result = await register({
         fullName,
         email,
-        phone,
+        phone: cleanedPhone,
         password,
       });
 
@@ -108,7 +114,7 @@ export default function RegisterPage() {
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Aarav Sharma"
+                placeholder="e.g. Shreyash Madgundi"
               />
             </Field>
 
@@ -118,7 +124,7 @@ export default function RegisterPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="aarav@example.com"
+                placeholder="shreemadgundi0111@gmail.com"
               />
             </Field>
 
@@ -126,9 +132,10 @@ export default function RegisterPage() {
               <Input
                 type="tel"
                 required
+                maxLength={10}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 98765 43210"
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit number (e.g. 9175331958)"
               />
             </Field>
 

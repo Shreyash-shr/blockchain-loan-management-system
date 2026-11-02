@@ -12,6 +12,7 @@ import {
   Search,
   Filter,
   Check,
+  Download,
 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { Pill } from '../../components/common/CommonUI';
@@ -123,6 +124,27 @@ export default function AdminVerificationPage() {
       ...prev,
       docs: prev.docs.map((d) => (d.key === docKey ? { ...d, status: newStatus } : d)),
     }));
+  };
+
+  const handleOpenDocFile = async (docId, filename) => {
+    try {
+      const token = api.getToken();
+      const res = await fetch(`${api.baseUrl}/documents/${docId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to retrieve file from secure storage');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'document';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      error(`Could not download document: ${err.message}`);
+    }
   };
 
   // Eligibility evaluation against current dynamic policy
@@ -558,9 +580,19 @@ export default function AdminVerificationPage() {
 
             <div className="flex justify-between items-center pt-2">
               <span className="text-xs text-slate-500">Verification state: {previewDoc.status}</span>
-              <Button variant="secondary" onClick={() => setPreviewDoc(null)}>
-                Close Preview
-              </Button>
+              <div className="flex items-center gap-2">
+                {previewDoc.id && (
+                  <Button
+                    onClick={() => handleOpenDocFile(previewDoc.id, previewDoc.filename)}
+                    className="!px-3.5 !py-2 text-xs"
+                  >
+                    <Download size={14} /> Open / Download File
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => setPreviewDoc(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>

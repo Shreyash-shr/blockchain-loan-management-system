@@ -1,6 +1,6 @@
 -- ============================================================================
 -- CREDCHAIN DATABASE SEED SCRIPT (PostgreSQL)
--- Generates default policy rules, system users, and initial test data
+-- Generates default policy rules and authorized domain accounts (clean slate)
 -- ============================================================================
 
 -- 1. SEED DEFAULT LOAN POLICY RULES
@@ -23,162 +23,173 @@ INSERT INTO loan_policy_rules (
   2,
   50.00,
   TRUE,
-  'BOARD-DIRECTIVE-2026/01'
+  'DIRECTIVE-NKOCET-2026/01'
 )
 ON CONFLICT (id) DO UPDATE SET
   min_cibil_score = EXCLUDED.min_cibil_score,
   min_age = EXCLUDED.min_age,
   max_age = EXCLUDED.max_age,
-  min_monthly_income = EXCLUDED.min_monthly_income;
+  min_monthly_income = EXCLUDED.min_monthly_income,
+  is_active = TRUE;
 
--- 2. SEED DEFAULT SYSTEM ACCOUNTS (Password for all accounts: 'password123')
--- Uses PostgreSQL pgcrypto crypt('password123', gen_salt('bf')) for secure bcrypt hashing
+SELECT setval('loan_policy_rules_id_seq', (SELECT COALESCE(MAX(id), 1) FROM loan_policy_rules));
 
--- Admin Account
+-- 2. SEED AUTHORIZED DOMAIN ACCOUNTS
+-- Password hashes generated with pgcrypto / bcrypt (cost: 10)
+
+-- 2a. Admin Account: NKOCTADMIN (AdminOrchid@123)
 INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
 VALUES (
   'a0000000-0000-0000-0000-000000000001',
-  'CredChain SuperAdmin',
-  'admin@credchain.io',
-  '+91 99999 00001',
-  crypt('password123', gen_salt('bf', 10)),
+  'NKOCTADMIN',
+  'nkocetadmin@gmail.com',
+  NULL,
+  crypt('AdminOrchid@123', gen_salt('bf', 10)),
   'admin',
   TRUE
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  password_hash = EXCLUDED.password_hash;
 
--- Loan Lender Account
+-- 2b. Lender Accounts
+-- NKOCET Accountant (Orchid@123)
 INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
 VALUES (
-  'b0000000-0000-0000-0000-000000000002',
-  'Apex Capital Underwriters',
-  'lender@credchain.io',
-  '+91 88888 00002',
-  crypt('password123', gen_salt('bf', 10)),
+  'b0000000-0000-0000-0000-000000000001',
+  'NKOCET Accountant',
+  'nkocetaccount@gmail.com',
+  NULL,
+  crypt('Orchid@123', gen_salt('bf', 10)),
   'lender',
   TRUE
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  password_hash = EXCLUDED.password_hash;
 
--- Sample Applicant Account
+-- NKOCET Accountant 2 (Orchid2@123)
 INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
 VALUES (
-  'c0000000-0000-0000-0000-000000000003',
-  'Aarav Sharma',
-  'aarav@example.com',
-  '+91 98765 43210',
-  crypt('password123', gen_salt('bf', 10)),
+  'b0000000-0000-0000-0000-000000000002',
+  'NKOCET Accountant 2',
+  'nkocetaccount2@gmail.com',
+  NULL,
+  crypt('Orchid2@123', gen_salt('bf', 10)),
+  'lender',
+  TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  password_hash = EXCLUDED.password_hash;
+
+-- 2c. Applicant Accounts (No loan applications attached)
+-- Shreyash Madgundi (Shreyash@123)
+INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
+VALUES (
+  'c0000000-0000-0000-0000-000000000001',
+  'Shreyash Madgundi',
+  'shreemadgundi0111@gmail.com',
+  '9175331958',
+  crypt('Shreyash@123', gen_salt('bf', 10)),
   'applicant',
   TRUE
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  password_hash = EXCLUDED.password_hash;
 
--- 3. SEED APPLICANT PROFILE
-INSERT INTO applicant_profiles (
-  user_id,
-  date_of_birth,
-  gender,
-  address_line1,
-  city,
-  state,
-  pincode,
-  monthly_income,
-  declared_credit_score,
-  existing_loan_details,
-  existing_monthly_emi,
-  profile_completed
-) VALUES (
-  'c0000000-0000-0000-0000-000000000003',
-  '1995-04-12',
-  'Male',
-  '42 Indiranagar 100ft Road',
-  'Bengaluru',
-  'Karnataka',
-  '560038',
-  68000.00,
-  764,
-  'None',
-  0.00,
-  TRUE
-)
+INSERT INTO applicant_profiles (user_id, profile_completed)
+VALUES ('c0000000-0000-0000-0000-000000000001', FALSE)
 ON CONFLICT (user_id) DO NOTHING;
 
--- 4. SEED SAMPLE LOAN APPLICATION
-INSERT INTO loan_applications (
-  id,
-  application_number,
-  applicant_id,
-  requested_amount,
-  purpose,
-  tenure_months,
-  status,
-  admin_status,
-  admin_remarks,
-  verified_credit_score,
-  verified_monthly_income,
-  submitted_at
-) VALUES (
-  'd0000000-0000-0000-0000-000000000004',
-  148,
-  'c0000000-0000-0000-0000-000000000003',
-  350000.00,
-  'Home renovation',
-  24,
-  'requested',
-  'pending',
-  'Awaiting initial compliance inspection by Admin',
-  764,
-  68000.00,
-  NOW() - INTERVAL '1 day'
+-- Sagar Kukadal (Sagar@123)
+INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
+VALUES (
+  'c0000000-0000-0000-0000-000000000002',
+  'Sagar Kukadal',
+  'sagarkukadal@gmail.com',
+  '9175331959',
+  crypt('Sagar@123', gen_salt('bf', 10)),
+  'applicant',
+  TRUE
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  password_hash = EXCLUDED.password_hash;
 
--- 5. SEED REQUIRED VERIFICATION DOCUMENTS
-INSERT INTO documents (
-  id,
-  applicant_id,
-  application_id,
-  document_type,
-  original_filename,
-  mime_type,
-  file_size_bytes,
-  storage_key,
-  verification_status
-) VALUES
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'pan_card', 'pan_aarav_sharma.pdf', 'application/pdf', 124500, 'docs/c0003/pan_card.pdf', 'valid'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'aadhaar_card', 'aadhaar_aarav_sharma.pdf', 'application/pdf', 245000, 'docs/c0003/aadhaar_card.pdf', 'valid'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'address_proof', 'bescom_bill_oct2026.pdf', 'application/pdf', 189000, 'docs/c0003/address_proof.pdf', 'valid'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'bank_statement', 'hdfc_bank_statement_6m.pdf', 'application/pdf', 840000, 'docs/c0003/bank_statement.pdf', 'pending'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'salary_slip', 'salary_slips_q3.pdf', 'application/pdf', 310000, 'docs/c0003/salary_slip.pdf', 'pending'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'photograph', 'passport_photo.jpg', 'image/jpeg', 95000, 'docs/c0003/photo.jpg', 'valid'),
-  (gen_random_uuid(), 'c0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004', 'signature', 'signature_aarav.png', 'image/png', 52000, 'docs/c0003/signature.png', 'valid');
+INSERT INTO applicant_profiles (user_id, profile_completed)
+VALUES ('c0000000-0000-0000-0000-000000000002', FALSE)
+ON CONFLICT (user_id) DO NOTHING;
 
--- 6. SEED SYSTEM AUDIT ENTRY
+-- Rahul Kukadal (Rahul@123)
+INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
+VALUES (
+  'c0000000-0000-0000-0000-000000000003',
+  'Rahul Kukadal',
+  'rahulkukadal@gmail.com',
+  '9960040480',
+  crypt('Rahul@123', gen_salt('bf', 10)),
+  'applicant',
+  TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  password_hash = EXCLUDED.password_hash;
+
+INSERT INTO applicant_profiles (user_id, profile_completed)
+VALUES ('c0000000-0000-0000-0000-000000000003', FALSE)
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Vikas Kalshetti (Vikas@123)
+INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
+VALUES (
+  'c0000000-0000-0000-0000-000000000004',
+  'Vikas Kalshetti',
+  'vikas123@gmail.com',
+  '9503994885',
+  crypt('Vikas@123', gen_salt('bf', 10)),
+  'applicant',
+  TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  password_hash = EXCLUDED.password_hash;
+
+INSERT INTO applicant_profiles (user_id, profile_completed)
+VALUES ('c0000000-0000-0000-0000-000000000004', FALSE)
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Iresh Patane (Iresh@123)
+INSERT INTO users (id, full_name, email, phone, password_hash, role, is_active)
+VALUES (
+  'c0000000-0000-0000-0000-000000000005',
+  'Iresh Patane',
+  'ireshpatane@gmail.com',
+  '9373199449',
+  crypt('Iresh@123', gen_salt('bf', 10)),
+  'applicant',
+  TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  phone = EXCLUDED.phone,
+  password_hash = EXCLUDED.password_hash;
+
+INSERT INTO applicant_profiles (user_id, profile_completed)
+VALUES ('c0000000-0000-0000-0000-000000000005', FALSE)
+ON CONFLICT (user_id) DO NOTHING;
+
+-- 3. SEED INITIAL SYSTEM AUDIT LOG
 INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
 VALUES (
   'a0000000-0000-0000-0000-000000000001',
   'SYSTEM_INITIALIZATION',
   'database',
   NULL,
-  '{"note": "CredChain database initialized with standard compliance rules and baseline seed users"}'::jsonb
+  '{"note": "CredChain database initialized with clean domain accounts (5 Applicants, 2 Lenders, 1 Admin) and 0 initial loans."}'::jsonb
 );
-
--- 7. SEED INITIAL BLOCKCHAIN TRANSACTION AUDIT RECORD
-INSERT INTO blockchain_transactions (
-  application_id,
-  network,
-  contract_address,
-  transaction_hash,
-  transaction_type,
-  tx_status,
-  confirmed_at
-) VALUES (
-  'd0000000-0000-0000-0000-000000000004',
-  'Polygon Amoy Testnet (ChainID: 80002)',
-  '0x3A2cE7495B5B84Ac544A30B48007C38B13dB5725',
-  '0x7c4f39b1a20d436ef482fa816913e2bb978453ef671d182283ad56c703b44b82',
-  'loan_created',
-  'confirmed',
-  NOW() - INTERVAL '1 day'
-)
-ON CONFLICT (transaction_hash) DO NOTHING;

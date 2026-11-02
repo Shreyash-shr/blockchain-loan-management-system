@@ -86,10 +86,15 @@ async function runSetup() {
 
     console.log('\n🎉 [CredChain] Database setup completed successfully!');
     console.log('----------------------------------------------------');
-    console.log('Initial accounts available for sign-in:');
-    console.log('  👑 Admin:     admin@credchain.io  / password123');
-    console.log('  💼 Lender:    lender@credchain.io / password123');
-    console.log('  👤 Applicant: aarav@example.com   / password123');
+    console.log('Authorized domain accounts initialized:');
+    console.log('  👑 Admin:     nkocetadmin@gmail.com        / AdminOrchid@123');
+    console.log('  💼 Lender:    nkocetaccount@gmail.com      / Orchid@123');
+    console.log('  💼 Lender 2:  nkocetaccount2@gmail.com     / Orchid2@123');
+    console.log('  👤 Applicant: shreemadgundi0111@gmail.com  / Shreyash@123');
+    console.log('  👤 Applicant: sagarkukadal@gmail.com       / Sagar@123');
+    console.log('  👤 Applicant: rahulkukadal@gmail.com       / Rahul@123');
+    console.log('  👤 Applicant: vikas123@gmail.com           / Vikas@123');
+    console.log('  👤 Applicant: ireshpatane@gmail.com        / Iresh@123');
     console.log('----------------------------------------------------\n');
   } catch (err) {
     console.error('❌ Error executing schema/seed queries:', err.message);

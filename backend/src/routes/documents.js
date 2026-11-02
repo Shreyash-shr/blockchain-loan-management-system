@@ -167,7 +167,7 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/documents/:id/download - Download document file
+// GET /api/documents/:id/download - Download document file (supports ?inline=true)
 router.get('/:id/download', authenticate, async (req, res) => {
   try {
     const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
@@ -178,7 +178,38 @@ router.get('/:id/download', authenticate, async (req, res) => {
 
     const doc = result.rows[0];
 
-    // Applicants can only download their own documents
+    // Applicants can only download their own documents; admin and lender can download any
+    if (req.user.role === 'applicant' && doc.applicant_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    const filePath = path.join(UPLOAD_DIR, doc.storage_key);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Document file not found on server.' });
+    }
+
+    const disposition = req.query.inline === 'true' ? 'inline' : 'attachment';
+    res.setHeader('Content-Type', doc.mime_type);
+    res.setHeader('Content-Disposition', `${disposition}; filename="${doc.original_filename}"`);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Document download error:', err.message);
+    res.status(500).json({ error: 'Document download failed.' });
+  }
+});
+
+// GET /api/documents/:id/view - Inline view endpoint for browser/lightbox preview
+router.get('/:id/view', authenticate, async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found.' });
+    }
+
+    const doc = result.rows[0];
+
     if (req.user.role === 'applicant' && doc.applicant_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied.' });
     }
@@ -190,11 +221,11 @@ router.get('/:id/download', authenticate, async (req, res) => {
     }
 
     res.setHeader('Content-Type', doc.mime_type);
-    res.setHeader('Content-Disposition', `attachment; filename="${doc.original_filename}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${doc.original_filename}"`);
     res.sendFile(filePath);
   } catch (err) {
-    console.error('Document download error:', err.message);
-    res.status(500).json({ error: 'Document download failed.' });
+    console.error('Document view error:', err.message);
+    res.status(500).json({ error: 'Document view failed.' });
   }
 });
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 // ──── Auth Schemas ────
 export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(['applicant', 'lender', 'admin']).optional(),
 });
 
@@ -11,13 +11,13 @@ export const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(160),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128),
-  phone: z.string().max(30).optional(),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits').optional(),
 });
 
 // ──── Applicant Profile Schema ────
 export const profileUpdateSchema = z.object({
   full_name: z.string().min(2).max(160).optional(),
-  phone: z.string().max(30).optional(),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits').optional(),
   date_of_birth: z.string().optional(),
   gender: z.string().max(40).optional(),
   address_line1: z.string().max(500).optional(),

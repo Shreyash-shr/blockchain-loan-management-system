@@ -18,6 +18,7 @@
     "backend:dev": "npm --prefix backend run dev",
     "server:start": "node backend/src/app.js",
     "db:setup": "node database/setup.js",
+    "db:reset": "node database/reset_and_seed.js",
     "test:phase4": "node backend/tests/verify_phase4.mjs",
     "test:phase5": "node backend/tests/verify_phase5.mjs",
     "test:phase8": "node backend/tests/verify_phase8.mjs",
