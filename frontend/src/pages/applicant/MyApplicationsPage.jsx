@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, AlertTriangle, Send, Search, Filter } from 'lucide-react';
+import { Plus, AlertTriangle, Send, Search, Filter, Eye, FileText, Download } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { Input, Select } from '../../components/common/FormElements';
 import LoanTable, { money } from '../../components/loans/LoanTable';
 import Modal from '../../components/common/Modal';
 import BlockchainBadge from '../../components/loans/BlockchainBadge';
 import LoanTimeline from '../../components/loans/LoanTimeline';
+import DocumentPreviewModal from '../../components/loans/DocumentPreviewModal';
 import { api } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
@@ -18,6 +19,7 @@ export default function MyApplicationsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedLoan, setSelectedLoan] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function MyApplicationsPage() {
     fetchApps();
   }, []);
 
-    const handleResubmitApplication = async (appId) => {
+  const handleResubmitApplication = async (appId) => {
     try {
       setIsResubmitting(true);
       const res = await api.patch(`/applications/${appId}/resubmit`);
@@ -86,7 +88,7 @@ export default function MyApplicationsPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-ink">My Loan Applications</h2>
           <p className="mt-1 text-sm text-slate-500">
-            View historical submissions, track verification, and inspect lender review notes.
+            View historical submissions, track verification, preview attached documents, and inspect lender review notes.
           </p>
         </div>
         <Button onClick={() => navigate('/applicant/apply')}>
@@ -234,9 +236,33 @@ export default function MyApplicationsPage() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Attached Documents ({docs.length})</h4>
                   <div className="space-y-1.5">
                     {docs.map((d) => (
-                      <div key={d.id} className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded-lg">
-                        <span className="font-medium text-slate-700 capitalize">{d.document_type.replace('_', ' ')}: {d.original_filename}</span>
-                        <span className="text-slate-400 capitalize bg-white px-2 py-0.5 rounded border border-slate-200 font-semibold">{d.verification_status}</span>
+                      <div key={d.id} className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200/60">
+                        <div className="flex items-center gap-2 min-w-0 pr-2">
+                          <FileText size={14} className="text-brand shrink-0" />
+                          <span className="font-medium text-slate-700 truncate capitalize">
+                            {d.document_type ? d.document_type.replace(/_/g, ' ') : 'Document'}: {d.original_filename}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-slate-600 capitalize bg-white px-2 py-0.5 rounded border border-slate-200 font-semibold text-[11px]">
+                            {d.verification_status || 'Pending'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewDoc({
+                                id: d.id,
+                                label: d.document_type ? d.document_type.replace(/_/g, ' ') : 'Document',
+                                filename: d.original_filename,
+                                status: d.verification_status,
+                                mime_type: d.mime_type,
+                              })
+                            }
+                            className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded border border-brand/30 shadow-xs"
+                          >
+                            <Eye size={12} /> View
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -252,6 +278,13 @@ export default function MyApplicationsPage() {
           </Modal>
         );
       })()}
+
+      {/* Document Preview Lightbox Modal */}
+      <DocumentPreviewModal
+        isOpen={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        doc={previewDoc}
+      />
     </div>
   );
 }

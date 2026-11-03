@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Check, Upload, Download, FileText, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Check, Upload, Download, Eye, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import Button from '../../components/common/Button';
 import DocumentUploader from '../../components/loans/DocumentUploader';
+import DocumentPreviewModal from '../../components/loans/DocumentPreviewModal';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
 
@@ -19,6 +20,7 @@ export default function ApplicantDocuments() {
   const { success, error } = useToast();
   const [serverDocs, setServerDocs] = useState([]);
   const [pendingUploads, setPendingUploads] = useState({});
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
@@ -111,13 +113,18 @@ export default function ApplicantDocuments() {
     (d) => d.verification_status === 'valid' || d.verification_status === 'verified'
   ).length;
 
+  // Extra docs not in standard categories
+  const extraDocs = serverDocs.filter(
+    (d) => !REQUIRED_CATEGORIES.some((c) => c.docType === d.document_type)
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-end">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-ink">My KYC & Income Documents</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Upload and maintain your KYC, identity, and income verification documents.
+            Upload, preview, and maintain your KYC, identity, and income verification documents.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3.5 py-2 rounded-xl text-xs font-semibold">
@@ -135,38 +142,106 @@ export default function ApplicantDocuments() {
             <p className="text-sm text-slate-500 animate-pulse">Loading verified documents...</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {REQUIRED_CATEGORIES.map((cat) => {
-              const uploadedDoc = findServerDoc(cat.docType);
-              const pendingFile = pendingUploads[cat.key];
-              const fileObj = pendingFile || (uploadedDoc ? { name: uploadedDoc.original_filename } : null);
-              const status = uploadedDoc ? uploadedDoc.verification_status : undefined;
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {REQUIRED_CATEGORIES.map((cat) => {
+                const uploadedDoc = findServerDoc(cat.docType);
+                const pendingFile = pendingUploads[cat.key];
+                const fileObj = pendingFile || (uploadedDoc ? { name: uploadedDoc.original_filename } : null);
+                const status = uploadedDoc ? uploadedDoc.verification_status : undefined;
 
-              return (
-                <div key={cat.key} className="space-y-1">
-                  <DocumentUploader
-                    docKey={cat.key}
-                    label={cat.label}
-                    required={cat.required}
-                    status={status}
-                    file={fileObj}
-                    onFileSelect={handleFileSelect}
-                  />
-                  {uploadedDoc && (
-                    <div className="flex items-center justify-between px-2 text-xs text-slate-400">
-                      <span>Uploaded: {new Date(uploadedDoc.uploaded_at).toLocaleDateString('en-IN')}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(uploadedDoc.id, uploadedDoc.original_filename)}
-                        className="text-brand font-medium hover:underline flex items-center gap-1"
-                      >
-                        <Download size={12} /> Download
-                      </button>
+                return (
+                  <div key={cat.key} className="space-y-1">
+                    <DocumentUploader
+                      docKey={cat.key}
+                      label={cat.label}
+                      required={cat.required}
+                      status={status}
+                      file={fileObj}
+                      onFileSelect={handleFileSelect}
+                    />
+                    {uploadedDoc && (
+                      <div className="flex items-center justify-between px-2 text-xs text-slate-500">
+                        <span>Uploaded: {new Date(uploadedDoc.uploaded_at).toLocaleDateString('en-IN')}</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewDoc({
+                                id: uploadedDoc.id,
+                                label: cat.label,
+                                filename: uploadedDoc.original_filename,
+                                status: uploadedDoc.verification_status,
+                                mime_type: uploadedDoc.mime_type,
+                              })
+                            }
+                            className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye size={12} /> View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(uploadedDoc.id, uploadedDoc.original_filename)}
+                            className="text-slate-600 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Download size={12} /> Download
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Extra Documents List if any */}
+            {extraDocs.length > 0 && (
+              <div className="rounded-xl border border-slate-200 p-4 space-y-2 bg-slate-50/50">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Additional Attached Documents ({extraDocs.length})
+                </h4>
+                <div className="space-y-2">
+                  {extraDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText size={15} className="text-brand shrink-0" />
+                        <div>
+                          <p className="font-semibold text-slate-800">{doc.original_filename}</p>
+                          <p className="text-[11px] text-slate-400 capitalize">{doc.document_type.replace(/_/g, ' ')}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewDoc({
+                              id: doc.id,
+                              label: doc.document_type.replace(/_/g, ' '),
+                              filename: doc.original_filename,
+                              status: doc.verification_status,
+                              mime_type: doc.mime_type,
+                            })
+                          }
+                          className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye size={12} /> View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(doc.id, doc.original_filename)}
+                          className="text-slate-600 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Download size={12} /> Download
+                        </button>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         )}
 
@@ -187,6 +262,13 @@ export default function ApplicantDocuments() {
           </div>
         </div>
       </div>
+
+      {/* Document Preview Lightbox Modal */}
+      <DocumentPreviewModal
+        isOpen={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        doc={previewDoc}
+      />
     </div>
   );
 }

@@ -154,9 +154,10 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 
     const doc = result.rows[0];
+    const userRole = (req.user?.role || '').toLowerCase();
 
     // Applicants can only view their own documents
-    if (req.user.role === 'applicant' && doc.applicant_id !== req.user.id) {
+    if (userRole === 'applicant' && doc.applicant_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
@@ -177,9 +178,10 @@ router.get('/:id/download', authenticate, async (req, res) => {
     }
 
     const doc = result.rows[0];
+    const userRole = (req.user?.role || '').toLowerCase();
 
     // Applicants can only download their own documents; admin and lender can download any
-    if (req.user.role === 'applicant' && doc.applicant_id !== req.user.id) {
+    if (userRole === 'applicant' && doc.applicant_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
@@ -209,8 +211,9 @@ router.get('/:id/view', authenticate, async (req, res) => {
     }
 
     const doc = result.rows[0];
+    const userRole = (req.user?.role || '').toLowerCase();
 
-    if (req.user.role === 'applicant' && doc.applicant_id !== req.user.id) {
+    if (userRole === 'applicant' && doc.applicant_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 

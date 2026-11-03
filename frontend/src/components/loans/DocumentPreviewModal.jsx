@@ -72,7 +72,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = doc.filename || 'document';
+      a.download = doc.filename || doc.original_filename || 'document';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -84,7 +84,7 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc }) {
 
   if (!isOpen || !doc) return null;
 
-  const filename = doc.filename || '';
+  const filename = doc.filename || doc.original_filename || '';
   const isImage =
     mimeType.startsWith('image/') ||
     /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(filename);
@@ -92,25 +92,32 @@ export default function DocumentPreviewModal({ isOpen, onClose, doc }) {
     mimeType.includes('pdf') ||
     /\.pdf$/i.test(filename);
 
+  const rawStatus = (doc.status || doc.verification_status || 'pending').toLowerCase();
   const statusLabel =
-    doc.status === 'valid'
+    rawStatus === 'valid' || rawStatus === 'verified'
       ? 'Valid'
-      : doc.status === 'invalid'
+      : rawStatus === 'invalid' || rawStatus === 'rejected'
       ? 'Invalid'
+      : rawStatus === 'needs_review'
+      ? 'Needs Review'
       : 'Pending Review';
 
   const statusClass =
-    doc.status === 'valid'
+    rawStatus === 'valid' || rawStatus === 'verified'
       ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-      : doc.status === 'invalid'
+      : rawStatus === 'invalid' || rawStatus === 'rejected'
       ? 'bg-rose-100 text-rose-800 border-rose-200'
+      : rawStatus === 'needs_review'
+      ? 'bg-orange-100 text-orange-800 border-orange-200'
       : 'bg-amber-100 text-amber-800 border-amber-200';
+
+  const displayLabel = doc.label || (doc.document_type ? doc.document_type.replace(/_/g, ' ') : 'Document');
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Document Preview: ${doc.label || 'Document'}`}
+      title={`Document Preview: ${displayLabel}`}
       subtitle={`File: ${filename}`}
       maxWidth="max-w-3xl"
     >
