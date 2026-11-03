@@ -99,7 +99,7 @@ router.get('/verification', authenticate, authorize('admin'), async (req, res) =
        JOIN users u ON u.id = la.applicant_id
        LEFT JOIN applicant_profiles ap ON ap.user_id = la.applicant_id
        ${whereClause}
-       ORDER BY la.submitted_at DESC
+       ORDER BY la.submitted_at ASC
        LIMIT $${pIdx} OFFSET $${pIdx + 1}`,
       params
     );
