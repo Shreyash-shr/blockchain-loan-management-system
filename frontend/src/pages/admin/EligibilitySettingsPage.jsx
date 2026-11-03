@@ -36,7 +36,7 @@ export default function EligibilitySettingsPage() {
       try {
         setLoading(true);
         const res = await api.get('/admin/policy-rules');
-        const rules = res.data?.policy_rules || res.policy_rules;
+        const rules = res.rules || res.data?.rules || res.data?.policy_rules || res.policy_rules;
         if (rules) {
           setPolicy({
             minCibilScore: rules.min_cibil_score || 750,
@@ -66,7 +66,7 @@ export default function EligibilitySettingsPage() {
     setIsSaving(true);
 
     try {
-      await api.put('/admin/policy-rules', {
+      const res = await api.put('/admin/policy-rules', {
         min_cibil_score: Number(policy.minCibilScore),
         min_age: Number(policy.minAge),
         max_age: Number(policy.maxAge),
@@ -75,31 +75,56 @@ export default function EligibilitySettingsPage() {
         max_dti_ratio: Number(policy.maxDtiRatio),
         authority_memo_ref: authorityNote || policy.higherAuthorityRef || 'ADMIN_UPDATE',
       });
+      const saved = res.rules || res.data?.rules;
+      if (saved) {
+        setPolicy({
+          minCibilScore: Number(saved.min_cibil_score),
+          minAge: Number(saved.min_age),
+          maxAge: Number(saved.max_age),
+          minMonthlyIncome: parseFloat(saved.min_monthly_income),
+          maxExistingLoans: Number(saved.max_existing_loans),
+          maxDtiRatio: parseFloat(saved.max_dti_ratio),
+          higherAuthorityRef: saved.authority_memo_ref || 'ADMIN_UPDATE',
+        });
+      }
       success('Loan eligibility conditions updated and active across all underwriting queues.');
+      setHistory((prev) => [
+        {
+          date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+          by: 'Admin',
+          change: `Updated thresholds: Min CIBIL ${policy.minCibilScore}, Age ${policy.minAge}-${policy.maxAge}, Min Income ₹${Number(policy.minMonthlyIncome).toLocaleString('en-IN')}${
+            authorityNote ? ` (Ref: ${authorityNote})` : ''
+          }`,
+        },
+        ...prev,
+      ]);
     } catch (err) {
       console.warn('Failed to save to server:', err.message);
       error(err.message || 'Failed to update policy rules.');
+    } finally {
+      setIsSaving(false);
     }
-
-    localStorage.setItem('credchain_policy_rules', JSON.stringify(policy));
-    setHistory((prev) => [
-      {
-        date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-        by: 'Admin',
-        change: `Updated thresholds: Min CIBIL ${policy.minCibilScore}, Age ${policy.minAge}-${policy.maxAge}, Min Income ₹${Number(policy.minMonthlyIncome).toLocaleString('en-IN')}${
-          authorityNote ? ` (Ref: ${authorityNote})` : ''
-        }`,
-      },
-      ...prev,
-    ]);
-
-    setIsSaving(false);
   };
 
-  const handleResetDefaults = () => {
-    setPolicy(defaultPolicy);
-    localStorage.setItem('credchain_policy_rules', JSON.stringify(defaultPolicy));
-    info('Eligibility criteria reset to standard corporate defaults.');
+  const handleResetDefaults = async () => {
+    try {
+      setIsSaving(true);
+      await api.put('/admin/policy-rules', {
+        min_cibil_score: defaultPolicy.minCibilScore,
+        min_age: defaultPolicy.minAge,
+        max_age: defaultPolicy.maxAge,
+        min_monthly_income: defaultPolicy.minMonthlyIncome,
+        max_existing_loans: defaultPolicy.maxExistingLoans,
+        max_dti_ratio: defaultPolicy.maxDtiRatio,
+        authority_memo_ref: 'DEFAULT_POLICY_RESET',
+      });
+      setPolicy(defaultPolicy);
+      info('Eligibility criteria reset to standard corporate defaults.');
+    } catch (err) {
+      error(err.message || 'Failed to reset policy defaults.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

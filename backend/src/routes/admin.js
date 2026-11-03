@@ -104,8 +104,13 @@ router.get('/verification', authenticate, authorize('admin'), async (req, res) =
       params
     );
 
+    const activePolicyRes = await query(
+      `SELECT * FROM loan_policy_rules WHERE is_active = TRUE ORDER BY id DESC LIMIT 1`
+    );
+
     res.json({
       applications: result.rows,
+      policy: activePolicyRes.rows[0] || null,
       total: parseInt(countResult.rows[0].count),
       page: parseInt(page),
       limit: parseInt(limit),

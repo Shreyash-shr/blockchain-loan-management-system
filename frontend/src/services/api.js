@@ -81,6 +81,14 @@ class ApiClient {
     });
   }
 
+  put(endpoint, body, options = {}) {
+    return this.request(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    });
+  }
+
   patch(endpoint, body, options = {}) {
     return this.request(endpoint, {
       ...options,

@@ -69,7 +69,14 @@ export default function AdminVerificationPage() {
         // Update policy from API response if available
         const policyData = res.policy || res.data?.policy;
         if (policyData) {
-          setPolicy(prev => ({ ...prev, ...policyData }));
+          setPolicy({
+            minCibilScore: Number(policyData.min_cibil_score ?? policyData.minCibilScore ?? 750),
+            minAge: Number(policyData.min_age ?? policyData.minAge ?? 21),
+            maxAge: Number(policyData.max_age ?? policyData.maxAge ?? 60),
+            minMonthlyIncome: parseFloat(policyData.min_monthly_income ?? policyData.minMonthlyIncome ?? 25000),
+            maxExistingLoans: Number(policyData.max_existing_loans ?? policyData.maxExistingLoans ?? 2),
+            maxDtiRatio: parseFloat(policyData.max_dti_ratio ?? policyData.maxDtiRatio ?? 50),
+          });
         }
       } catch (err) {
         console.error('Failed to fetch applications:', err);
