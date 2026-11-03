@@ -236,13 +236,18 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
       newLoanStatus = 'compliance_rejected';
     }
 
+    const clearReturnMsg = admin_status === 'verified';
+
     await client.query(
       `UPDATE loan_applications 
-       SET admin_status = $1, admin_remarks = $2, admin_verifier_id = $3, admin_verified_at = NOW(),
+       SET admin_status = $1::admin_verification_status,
+           admin_remarks = $2,
+           admin_verifier_id = $3,
+           admin_verified_at = NOW(),
            status = $4,
-           lender_return_message = CASE WHEN $1 = 'verified' THEN NULL ELSE lender_return_message END
-       WHERE id = $5`,
-      [admin_status, admin_remarks || null, req.user.id, newLoanStatus, req.params.id]
+           lender_return_message = CASE WHEN $5::boolean THEN NULL ELSE lender_return_message END
+       WHERE id = $6`,
+      [admin_status, admin_remarks || null, req.user.id, newLoanStatus, clearReturnMsg, req.params.id]
     );
 
     // Update verification checks
@@ -270,26 +275,26 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
 
     // Notify applicant & lenders
     if (admin_status === 'verified') {
-      createNotification(app.applicant_id, {
+      await createNotification(app.applicant_id, {
         title: 'Compliance Verified',
         message: 'Your loan application documents and eligibility criteria have been verified and forwarded to lenders for underwriting.',
         type: 'success',
         link: '/applicant/applications',
-      }).catch(() => {});
+      });
 
-      notifyRole('lender', {
+      await notifyRole('lender', {
         title: 'Verified Loan for Review',
         message: `A loan application for ₹${parseFloat(app.requested_amount).toLocaleString('en-IN')} has been verified and is ready for underwriting.`,
         type: 'action',
         link: '/lender/requests',
-      }).catch(() => {});
+      });
     } else if (admin_status === 'rejected') {
-      createNotification(app.applicant_id, {
+      await createNotification(app.applicant_id, {
         title: 'Verification Rejected',
         message: `Your loan application could not be certified. Reason: ${admin_remarks || 'Document or eligibility criteria not met.'}`,
         type: 'warning',
         link: '/applicant/applications',
-      }).catch(() => {});
+      });
     }
 
     res.json({
