@@ -17,6 +17,7 @@ import {
 import Button from '../../components/common/Button';
 import { Pill } from '../../components/common/CommonUI';
 import Modal from '../../components/common/Modal';
+import DocumentPreviewModal from '../../components/loans/DocumentPreviewModal';
 import { money } from '../../components/loans/LoanTable';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
@@ -93,6 +94,7 @@ export default function AdminVerificationPage() {
         filename: d.original_filename,
         status: d.verification_status || 'pending',
         id: d.id,
+        mime_type: d.mime_type,
       }));
       setSelectedApp({
         ...app,
@@ -124,6 +126,9 @@ export default function AdminVerificationPage() {
       ...prev,
       docs: prev.docs.map((d) => (d.key === docKey ? { ...d, status: newStatus } : d)),
     }));
+    if (previewDoc && previewDoc.key === docKey) {
+      setPreviewDoc((prev) => (prev ? { ...prev, status: newStatus } : null));
+    }
   };
 
   const handleOpenDocFile = async (docId, filename) => {
@@ -560,43 +565,11 @@ export default function AdminVerificationPage() {
       )}
 
       {/* Document Preview Lightbox Modal */}
-      {previewDoc && (
-        <Modal
-          isOpen={!!previewDoc}
-          onClose={() => setPreviewDoc(null)}
-          title={`Document Preview: ${previewDoc.label}`}
-          subtitle={`File: ${previewDoc.filename}`}
-          maxWidth="max-w-2xl"
-        >
-          <div className="space-y-4">
-            <div className="h-80 w-full rounded-xl bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center border border-slate-800">
-              <FileCheck2 size={48} className="text-brand mb-3" />
-              <p className="font-semibold text-sm">{previewDoc.label}</p>
-              <p className="text-xs text-slate-400 mt-1">{previewDoc.filename}</p>
-              <p className="text-[11px] text-slate-500 max-w-sm mt-3">
-                Protected Document Store: Content is cryptographically decrypted for authorized administrative verification only.
-              </p>
-            </div>
-
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-xs text-slate-500">Verification state: {previewDoc.status}</span>
-              <div className="flex items-center gap-2">
-                {previewDoc.id && (
-                  <Button
-                    onClick={() => handleOpenDocFile(previewDoc.id, previewDoc.filename)}
-                    className="!px-3.5 !py-2 text-xs"
-                  >
-                    <Download size={14} /> Open / Download File
-                  </Button>
-                )}
-                <Button variant="secondary" onClick={() => setPreviewDoc(null)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <DocumentPreviewModal
+        isOpen={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        doc={previewDoc}
+      />
     </div>
   );
 }

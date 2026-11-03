@@ -14,6 +14,7 @@ import {
   Eye,
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import DocumentPreviewModal from '../../components/loans/DocumentPreviewModal';
 import Button from '../../components/common/Button';
 import { Pill } from '../../components/common/CommonUI';
 import { money } from '../../components/loans/LoanTable';
@@ -272,9 +273,11 @@ export default function LoanReviewModal({ loan, isOpen, onClose, onDecide, onRet
                     type="button"
                     onClick={() =>
                       setPreviewDoc({
+                        id: doc.id,
                         label: (doc.document_type || doc.label || 'Document').replace(/_/g, ' '),
                         filename: doc.original_filename || doc.filename,
                         status: doc.verification_status || 'valid',
+                        mime_type: doc.mime_type,
                       })
                     }
                     className="flex items-center gap-1 text-xs font-medium text-brand hover:underline p-1 shrink-0"
@@ -455,33 +458,11 @@ export default function LoanReviewModal({ loan, isOpen, onClose, onDecide, onRet
     </Modal>
 
     {/* Read-Only Document Inspection Preview Lightbox Modal */}
-    {previewDoc && (
-      <Modal
-        isOpen={!!previewDoc}
-        onClose={() => setPreviewDoc(null)}
-        title={`Inspection Preview: ${previewDoc.label}`}
-        subtitle={`Attached Proof: ${previewDoc.filename}`}
-        maxWidth="max-w-2xl"
-      >
-        <div className="space-y-4">
-          <div className="h-72 w-full rounded-xl bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center border border-slate-800">
-            <FileCheck2 size={44} className="text-brand mb-3" />
-            <p className="font-semibold text-sm">{previewDoc.label}</p>
-            <p className="text-xs text-slate-400 mt-1">{previewDoc.filename}</p>
-            <p className="text-[11px] text-slate-500 max-w-sm mt-3">
-              Protected Document Store: Content verified by Admin compliance team. Read-only view for authorized lender audit.
-            </p>
-          </div>
-
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-xs text-slate-500">Admin verification status: <strong className="capitalize text-emerald-700">{previewDoc.status}</strong></span>
-            <Button variant="secondary" onClick={() => setPreviewDoc(null)}>
-              Close Preview
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    )}
+    <DocumentPreviewModal
+      isOpen={!!previewDoc}
+      onClose={() => setPreviewDoc(null)}
+      doc={previewDoc}
+    />
     </>
   );
 }
