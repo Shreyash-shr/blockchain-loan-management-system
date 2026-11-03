@@ -107,7 +107,7 @@ export default function ApplicantRepayments() {
   const handleDownloadReceipt = async (r) => {
     try {
       info(`Generating official PDF receipt for ${r.ref || 'Instalment'}...`);
-      const token = localStorage.getItem('credchain_token');
+      const token = api.getToken();
       const response = await fetch(`http://localhost:5000/api/repayments/${r.id}/receipt`, {
         headers: {
           Authorization: `Bearer ${token}`,

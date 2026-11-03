@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
+import {
+  clearLegacySharedSession,
+  clearSession,
+  readSessionToken,
+  readSessionUser,
+  writeSessionUser,
+} from '../services/session';
 
 export function normalizeRole(role) {
   if (!role) return 'applicant';
@@ -13,26 +20,19 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('credchain_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.role) {
-          parsed.role = normalizeRole(parsed.role);
-        }
-        return parsed;
-      }
-      return null;
-    } catch {
-      return null;
+    clearLegacySharedSession();
+    const parsed = readSessionUser();
+    if (parsed && parsed.role) {
+      parsed.role = normalizeRole(parsed.role);
     }
+    return parsed;
   });
-  const [token, setToken] = useState(() => localStorage.getItem('credchain_token') || null);
+  const [token, setToken] = useState(() => readSessionToken() || null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function verifyAuth() {
-      const storedToken = localStorage.getItem('credchain_token');
+      const storedToken = readSessionToken();
       if (!storedToken) {
         setIsLoading(false);
         return;
@@ -46,15 +46,14 @@ export function AuthProvider({ children }) {
             role: normalizeRole(response.user.role),
           };
           setUser(sanitizedUser);
-          localStorage.setItem('credchain_user', JSON.stringify(sanitizedUser));
+          writeSessionUser(sanitizedUser);
         }
       } catch (err) {
         console.warn('Backend /auth/me not available or expired token:', err.message);
         if (err.status === 401) {
           setUser(null);
           setToken(null);
-          localStorage.removeItem('credchain_token');
-          localStorage.removeItem('credchain_user');
+          clearSession();
         }
       } finally {
         setIsLoading(false);
@@ -92,7 +91,7 @@ export function AuthProvider({ children }) {
         api.setToken(res.token);
         setToken(res.token);
         setUser(cleanUser);
-        localStorage.setItem('credchain_user', JSON.stringify(cleanUser));
+        writeSessionUser(cleanUser);
         return { success: true, user: cleanUser };
       }
       throw new Error('Invalid response from server');
@@ -119,7 +118,7 @@ export function AuthProvider({ children }) {
         api.setToken(res.token);
         setToken(res.token);
         setUser(cleanUser);
-        localStorage.setItem('credchain_user', JSON.stringify(cleanUser));
+        writeSessionUser(cleanUser);
         return { success: true, user: cleanUser };
       }
       return { success: true, message: res?.message || 'Registration successful' };
@@ -143,8 +142,7 @@ export function AuthProvider({ children }) {
       api.setToken(null);
       setToken(null);
       setUser(null);
-      localStorage.removeItem('credchain_user');
-      localStorage.removeItem('credchain_token');
+      clearSession();
     }
   };
 

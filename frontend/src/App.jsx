@@ -6,6 +6,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import DashboardLayout from './layouts/DashboardLayout';
 
 // Auth Pages
+import LoginChooser from './pages/auth/LoginChooser';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -61,7 +62,8 @@ export default function App() {
           <Routes>
             {/* Root & Public Routes */}
             <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<LoginChooser />} />
+            <Route path="/login/:role" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
             {/* Applicant Protected Routes */}

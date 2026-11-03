@@ -1,3 +1,5 @@
+import { clearSession, readSessionToken, writeSessionToken } from './session.js';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 class ApiClient {
@@ -6,15 +8,11 @@ class ApiClient {
   }
 
   getToken() {
-    return localStorage.getItem('credchain_token');
+    return readSessionToken();
   }
 
   setToken(token) {
-    if (token) {
-      localStorage.setItem('credchain_token', token);
-    } else {
-      localStorage.removeItem('credchain_token');
-    }
+    writeSessionToken(token);
   }
 
   async request(endpoint, options = {}) {
@@ -40,9 +38,8 @@ class ApiClient {
 
       if (response.status === 401) {
         // Clear token on unauthorized if not an auth endpoint
-        if (!endpoint.startsWith('/auth/login')) {
-          localStorage.removeItem('credchain_token');
-          localStorage.removeItem('credchain_user');
+        if (!endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register')) {
+          clearSession();
           window.dispatchEvent(new Event('credchain_auth_change'));
         }
       }

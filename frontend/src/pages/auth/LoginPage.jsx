@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ShieldCheck, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Logo } from '../../components/common/CommonUI';
 import Button from '../../components/common/Button';
@@ -7,27 +7,54 @@ import { Input, Field } from '../../components/common/FormElements';
 import { useAuth, normalizeRole } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
+const WORKSPACES = {
+  applicant: {
+    label: 'Applicant',
+    headline: 'Sign in as an applicant',
+    detail: 'This page accepts applicant accounts only.',
+  },
+  lender: {
+    label: 'Lender',
+    headline: 'Sign in as a lender',
+    detail: 'This page accepts lender accounts only.',
+  },
+  admin: {
+    label: 'Admin',
+    headline: 'Sign in as an administrator',
+    detail: 'This page accepts administrator accounts only.',
+  },
+};
+
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { role: roleParam } = useParams();
+  const workspace = WORKSPACES[roleParam];
+  const { login, logout } = useAuth();
   const { success, error, info } = useToast();
   const navigate = useNavigate();
 
-  const [role, setRole] = useState('Applicant');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!workspace) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const result = await login(email, password, role);
+      const result = await login(email, password, roleParam);
       if (result.success) {
-        const userRole = normalizeRole(result.user.role || role);
-        success(`Signed in as ${result.user.full_name || email} (${userRole})`);
+        const userRole = normalizeRole(result.user.role);
+        if (userRole !== roleParam) {
+          await logout();
+          error(`This account does not have ${workspace.label.toLowerCase()} access.`);
+          return;
+        }
+        success(`Signed in as ${result.user.full_name || email}`);
         if (userRole === 'admin') navigate('/admin');
         else if (userRole === 'lender') navigate('/lender');
         else navigate('/applicant');
@@ -85,27 +112,9 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-8">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand">Welcome Back</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">Sign in to CredChain</h2>
-            <p className="mt-2 text-sm text-slate-500">Choose your workspace and authenticate securely.</p>
-          </div>
-
-          {/* Role Selector Tabs */}
-          <div className="mb-6 grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1.5">
-            {['Applicant', 'Loan Lender', 'Admin'].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`rounded-xl px-2 py-2.5 text-xs font-semibold transition sm:text-sm ${
-                  role === r
-                    ? 'bg-white text-brand shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {r === 'Loan Lender' ? 'Lender' : r}
-              </button>
-            ))}
+            <p className="text-sm font-semibold uppercase tracking-wider text-brand">{workspace.label} workspace</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">{workspace.headline}</h2>
+            <p className="mt-2 text-sm text-slate-500">{workspace.detail}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -141,17 +150,7 @@ export default function LoginPage() {
               </div>
             </Field>
 
-            <div className="flex items-center justify-between text-sm pt-1">
-              <label className="flex items-center gap-2 text-slate-600 cursor-pointer text-xs sm:text-sm">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-slate-300 text-brand focus:ring-brand"
-                />
-                <span>Remember me</span>
-              </label>
-
+            <div className="flex justify-end text-sm pt-1">
               <button
                 type="button"
                 onClick={() => info('Password reset instructions will be sent once the email service is connected.')}
@@ -166,17 +165,24 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="w-full !py-3.5 text-base mt-2"
             >
-              {isSubmitting ? 'Signing in...' : 'Sign in to Workspace'}
+              {isSubmitting ? 'Signing in...' : `Sign in as ${workspace.label}`}
               <ArrowRight size={16} />
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            Don't have an applicant account?{' '}
-            <Link to="/register" className="font-semibold text-brand hover:underline">
-              Create an account
+            <Link to="/login" className="font-semibold text-brand hover:underline">
+              Choose a different workspace
             </Link>
           </p>
+          {roleParam === 'applicant' && (
+            <p className="mt-3 text-center text-sm text-slate-500">
+              Need an applicant account?{' '}
+              <Link to="/register" className="font-semibold text-brand hover:underline">
+                Create an account
+              </Link>
+            </p>
+          )}
 
           <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-xs leading-5 text-slate-600">
             <span className="font-semibold text-brand block mb-0.5">Role-Based Access:</span>
