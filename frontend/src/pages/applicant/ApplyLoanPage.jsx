@@ -100,13 +100,19 @@ export default function ApplyLoanPage() {
       return;
     }
 
+    const cleanPhone = form.phone ? form.phone.replace(/\D/g, '').slice(-10) : undefined;
+    if (form.phone && (!cleanPhone || cleanPhone.length !== 10)) {
+      error('Please enter a valid 10-digit mobile phone number.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       // 1. Update applicant profile details
       await api.patch('/applicants/me', {
         full_name: form.fullName || undefined,
-        phone: form.phone || undefined,
+        phone: form.phone ? form.phone.replace(/\D/g, '').slice(-10) : undefined,
         date_of_birth: form.dob || undefined,
         gender: form.gender || undefined,
         monthly_income: form.monthlyIncome ? Number(form.monthlyIncome) : undefined,

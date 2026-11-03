@@ -56,6 +56,7 @@ async function resetAndSeed() {
     await client.query('DELETE FROM documents;');
     await client.query('DELETE FROM loan_applications;');
     await client.query('DELETE FROM applicant_profiles;');
+    await client.query('UPDATE loan_policy_rules SET updated_by = NULL;');
     await client.query('DELETE FROM users;');
 
     // Reset sequences
@@ -178,6 +179,7 @@ async function resetAndSeed() {
 
     // 4d. Seed System Initialization Audit Log
     const adminUser = await client.query(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
+    await client.query('UPDATE loan_policy_rules SET updated_by = $1 WHERE is_active = TRUE;', [adminUser.rows[0].id]);
     await client.query(
       `INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
        VALUES ($1, 'SYSTEM_DATABASE_RESET', 'database', $1, $2)`,

@@ -59,7 +59,10 @@ export function authorize(...allowedRoles) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toLowerCase();
+    const allowed = allowedRoles.map((r) => (r || '').toLowerCase());
+
+    if (!allowed.includes(userRole)) {
       return res.status(403).json({
         error: 'Access denied. You do not have permission to perform this action.',
       });
