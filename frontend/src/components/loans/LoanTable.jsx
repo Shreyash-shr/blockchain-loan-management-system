@@ -83,7 +83,7 @@ export default function LoanTable({ loans = [], onOpen, role = 'applicant' }) {
                     : l.date || 'Recent'}
                 </td>
                 <td className="px-4 py-4">
-                  <Pill>{l.status}</Pill>
+                  <Pill>{l.admin_status === 'needs_correction' ? 'Needs Correction' : l.status}</Pill>
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Button

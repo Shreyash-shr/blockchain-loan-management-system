@@ -133,6 +133,71 @@ router.post('/', authenticate, authorize('applicant'), validate(loanApplicationS
   }
 });
 
+// PATCH /api/applications/:id/resubmit - Resubmit application returned for corrections
+router.patch('/:id/resubmit', authenticate, authorize('applicant'), async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+
+    const appCheck = await client.query(
+      'SELECT * FROM loan_applications WHERE id = $1 AND applicant_id = $2 FOR UPDATE',
+      [req.params.id, req.user.id]
+    );
+
+    if (appCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Application not found or access denied.' });
+    }
+
+    const application = appCheck.rows[0];
+    if (application.admin_status !== 'needs_correction') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `Only applications returned for correction can be resubmitted. Current status: ${application.admin_status}`,
+      });
+    }
+
+    const updateRes = await client.query(
+      `UPDATE loan_applications
+       SET admin_status = 'pending',
+           status = 'requested',
+           submitted_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details)
+       VALUES ($1, 'APPLICATION_RESUBMITTED_BY_APPLICANT', 'loan_application', $2, $3)`,
+      [req.user.id, req.params.id, JSON.stringify({ application_id: req.params.id })]
+    );
+
+    await client.query('COMMIT');
+
+    // Notify admins
+    notifyRole('admin', {
+      title: 'Application Resubmitted',
+      message: `Application for ₹${parseFloat(application.requested_amount).toLocaleString('en-IN')} has been resubmitted with corrections.`,
+      type: 'action',
+      link: '/admin/verification',
+    }).catch(() => {});
+
+    res.json({
+      message: 'Application resubmitted successfully for verification.',
+      application: updateRes.rows[0],
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Application resubmit error:', err.message);
+    res.status(500).json({ error: 'Failed to resubmit application.' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/applications/:id - Get a single application (with role checks)
 router.get('/:id', authenticate, async (req, res) => {
   try {

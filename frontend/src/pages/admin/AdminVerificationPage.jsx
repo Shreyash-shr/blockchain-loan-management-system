@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  RotateCcw,
   FileCheck2,
   CheckCircle2,
   XCircle,
@@ -26,6 +27,9 @@ export default function AdminVerificationPage() {
   const { success, error, info } = useToast();
   const [apps, setApps] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('Document KYC needed');
+  const [returnNote, setReturnNote] = useState('');
   const [previewDoc, setPreviewDoc] = useState(null);
   const [adminRemarks, setAdminRemarks] = useState('');
   const [search, setSearch] = useState('');
@@ -194,6 +198,31 @@ export default function AdminVerificationPage() {
     } catch (err) {
       console.error('Certification failed:', err);
       error(err.message || 'Failed to certify application.');
+    }
+  };
+
+    const handleSendBackToApplicant = async () => {
+    if (!selectedApp) return;
+    if (!returnNote.trim()) {
+      error('Please write specific instructions or reason for returning the application.');
+      return;
+    }
+
+    const message = `[${returnReason}] ${returnNote.trim()}`;
+    try {
+      await api.patch(`/admin/verification/${selectedApp.id}`, {
+        admin_status: 'needs_correction',
+        admin_remarks: message,
+      });
+
+      setApps((prev) => prev.filter((a) => a.id !== selectedApp.id));
+      success(`Application ${selectedApp.id} returned to applicant for correction.`);
+      setSelectedApp(null);
+      setShowReturnModal(false);
+      setReturnNote('');
+    } catch (err) {
+      console.error('Send back failed:', err);
+      error(err.message || 'Failed to return application to applicant.');
     }
   };
 
@@ -552,7 +581,15 @@ export default function AdminVerificationPage() {
                 Cancel
               </Button>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowReturnModal(true)}
+                  className="!border-amber-300 !bg-amber-50 !text-amber-800 hover:!bg-amber-100 font-semibold"
+                >
+                  <RotateCcw size={15} className="text-amber-600" /> Send back to applicant
+                </Button>
+
                 <Button variant="danger" onClick={handleRejectCompliance}>
                   <XCircle size={15} /> Compliance Reject
                 </Button>
@@ -566,6 +603,62 @@ export default function AdminVerificationPage() {
                   Certify & Send to Lender
                 </Button>
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Send Back to Applicant Modal */}
+      {showReturnModal && selectedApp && (
+        <Modal
+          isOpen={showReturnModal}
+          onClose={() => setShowReturnModal(false)}
+          title="Send Back Application to Applicant"
+          subtitle={`Application: ${selectedApp.id} · Applicant: ${selectedApp.name}`}
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Primary Reason *
+              </label>
+              <select
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-blue-100"
+              >
+                <option value="Document KYC needed">Document KYC needed</option>
+                <option value="Address proof needed">Address proof needed</option>
+                <option value="Invalid document">Invalid document</option>
+                <option value="CIBIL score is low">CIBIL score is low</option>
+                <option value="Income proof mismatch">Income proof mismatch</option>
+                <option value="Other discrepancy">Other discrepancy</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Detailed Message to Applicant *
+              </label>
+              <textarea
+                rows={4}
+                value={returnNote}
+                onChange={(e) => setReturnNote(e.target.value)}
+                placeholder="Explain clearly what document or detail needs to be updated (e.g. Aadhaar card image is blurred, please upload a clear scanned copy)..."
+                className="w-full rounded-xl border border-slate-200 p-3 text-xs outline-none focus:border-brand focus:ring-4 focus:ring-blue-100 bg-white"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setShowReturnModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendBackToApplicant}
+                className="!bg-amber-600 hover:!bg-amber-700 text-white"
+              >
+                <RotateCcw size={14} /> Send back to applicant
+              </Button>
             </div>
           </div>
         </Modal>

@@ -19,6 +19,10 @@ export const statusStyles = {
   Verified: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   Pending: 'bg-amber-50 text-amber-700 ring-amber-200',
   'Needs Review': 'bg-orange-50 text-orange-700 ring-orange-200',
+  needs_correction: 'bg-amber-100 text-amber-900 ring-amber-300 font-bold',
+  'Needs Correction': 'bg-amber-100 text-amber-900 ring-amber-300 font-bold',
+  compliance_verified: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  compliance_rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
 };
 
 export function Pill({ children, className = '' }) {

@@ -239,6 +239,8 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
       newLoanStatus = 'compliance_verified';
     } else if (admin_status === 'rejected') {
       newLoanStatus = 'compliance_rejected';
+    } else if (admin_status === 'needs_correction') {
+      newLoanStatus = 'under_review';
     }
 
     const clearReturnMsg = admin_status === 'verified';
@@ -270,7 +272,7 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
        VALUES ($1, $2, 'loan_application', $3, $4)`,
       [
         req.user.id,
-        admin_status === 'verified' ? 'ADMIN_COMPLIANCE_VERIFIED' : 'ADMIN_COMPLIANCE_REJECTED',
+        admin_status === 'verified' ? 'ADMIN_COMPLIANCE_VERIFIED' : admin_status === 'rejected' ? 'ADMIN_COMPLIANCE_REJECTED' : 'ADMIN_RETURNED_FOR_CORRECTION',
         req.params.id,
         JSON.stringify({ admin_status, admin_remarks, previous_status: app.status }),
       ]
@@ -297,6 +299,13 @@ router.patch('/verification/:id', authenticate, authorize('admin'), validate(adm
       await createNotification(app.applicant_id, {
         title: 'Verification Rejected',
         message: `Your loan application could not be certified. Reason: ${admin_remarks || 'Document or eligibility criteria not met.'}`,
+        type: 'warning',
+        link: '/applicant/applications',
+      });
+    } else if (admin_status === 'needs_correction') {
+      await createNotification(app.applicant_id, {
+        title: 'Application Returned for Correction',
+        message: `Admin returned your application for corrections. Reason: ${admin_remarks || 'Please update your documents or details.'}`,
         type: 'warning',
         link: '/applicant/applications',
       });

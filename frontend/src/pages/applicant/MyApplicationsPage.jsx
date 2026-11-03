@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, AlertTriangle, Send, Search, Filter } from 'lucide-react';
 import Button from '../../components/common/Button';
 import { Input, Select } from '../../components/common/FormElements';
 import LoanTable, { money } from '../../components/loans/LoanTable';
@@ -8,9 +8,12 @@ import Modal from '../../components/common/Modal';
 import BlockchainBadge from '../../components/loans/BlockchainBadge';
 import LoanTimeline from '../../components/loans/LoanTimeline';
 import { api } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
 
 export default function MyApplicationsPage() {
   const navigate = useNavigate();
+  const { success, error } = useToast();
+  const [isResubmitting, setIsResubmitting] = useState(false);
   const [loans, setLoans] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -35,6 +38,32 @@ export default function MyApplicationsPage() {
     }
     fetchApps();
   }, []);
+
+    const handleResubmitApplication = async (appId) => {
+    try {
+      setIsResubmitting(true);
+      const res = await api.patch(`/applications/${appId}/resubmit`);
+      success('Application resubmitted successfully for admin verification!');
+      // Update local state
+      setLoans((prev) =>
+        prev.map((l) => (l.id === appId ? { ...l, admin_status: 'pending', status: 'requested' } : l))
+      );
+      if (selectedLoan) {
+        setSelectedLoan((prev) => ({
+          ...prev,
+          application: {
+            ...(prev.application || prev),
+            admin_status: 'pending',
+            status: 'requested',
+          },
+        }));
+      }
+    } catch (err) {
+      error(err.message || 'Failed to resubmit application.');
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
 
   const handleOpenLoan = async (loan) => {
     try {
@@ -155,6 +184,32 @@ export default function MyApplicationsPage() {
 
               {/* Loan Lifecycle Status Timeline */}
               <LoanTimeline currentStatus={app.status} />
+
+              {/* Action Required: Needs Correction Banner */}
+              {app.admin_status === 'needs_correction' && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                    <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                    <span>Action Required: Returned by Admin for Correction</span>
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-white p-3 text-xs text-amber-900">
+                    <span className="font-bold block mb-1 text-amber-950">Reason & Admin Instructions:</span>
+                    <p className="whitespace-pre-wrap">{app.admin_remarks || 'Please update your documents or details as instructed.'}</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+                    <p className="text-[11px] text-amber-800">
+                      You can replace documents in My Documents, then resubmit this application.
+                    </p>
+                    <Button
+                      onClick={() => handleResubmitApplication(app.id)}
+                      disabled={isResubmitting}
+                      className="!px-4 !py-2 text-xs !bg-amber-600 hover:!bg-amber-700 text-white shrink-0"
+                    >
+                      <Send size={13} /> {isResubmitting ? 'Resubmitting...' : 'Resubmit Application'}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-xl border border-slate-200 p-4 space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Verification & Decision</h4>
